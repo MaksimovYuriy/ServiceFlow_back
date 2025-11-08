@@ -7,4 +7,11 @@ Rails.application.routes.draw do
 
   # Defines the root path route ("/")
   # root "posts#index"
+
+  post '/auth/sign_in'
+
+  scope path: ApplicationResource.endpoint_namespace, defaults: { format: :jsonapi } do
+    resources :users
+
+  end
 end

@@ -2,6 +2,24 @@ source "https://rubygems.org"
 
 ruby "3.3.0"
 
+# Graphiti
+gem "graphiti"
+gem "graphiti-rails"
+gem "responders"
+
+# CORS
+gem "rack-cors"
+
+# JWT
+gem 'bcrypt'
+gem 'jwt'
+
+# Авторизация
+gem "pundit"
+
+# Пагинация
+gem 'kaminari'
+
 # Bundle edge Rails instead: gem "rails", github: "rails/rails", branch: "main"
 gem "rails", "~> 7.1.6"
 
