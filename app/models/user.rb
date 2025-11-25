@@ -1,15 +1,10 @@
 class User < ApplicationRecord
     has_secure_password
 
-    enum role: {
-        user: 0,
-        admin: 1
-    }
-
     validates :email, presence: true, uniqueness: true
 
     def generate_jwt
-        JwtService.new(:encode, id: id, email: email, phone: phone, role: role, active: active).call
+        JwtService.new(:encode, id: id, email: email, phone: phone, active: active).call
     end
 
     def self.from_jwt(token)

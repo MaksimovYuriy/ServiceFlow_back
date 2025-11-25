@@ -1,0 +1,17 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  date: 2025-11-25 21:05:32
+  status: 1
+  total_price: 1.5
+  service: one
+  client: one
+  master: one
+
+two:
+  date: 2025-11-25 21:05:32
+  status: 1
+  total_price: 1.5
+  service: two
+  client: two
+  master: two

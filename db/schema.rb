@@ -10,15 +10,86 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2025_11_08_121431) do
+ActiveRecord::Schema[7.1].define(version: 2025_11_25_180727) do
+  create_table "clients", force: :cascade do |t|
+    t.string "full_name"
+    t.string "phone"
+    t.string "telegram"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
+  create_table "masters", force: :cascade do |t|
+    t.string "full_name"
+    t.string "phone"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
+  create_table "materials", force: :cascade do |t|
+    t.string "title"
+    t.float "quantity"
+    t.float "minimal_quantity"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
+  create_table "notes", force: :cascade do |t|
+    t.datetime "date"
+    t.integer "status"
+    t.float "total_price"
+    t.integer "service_id", null: false
+    t.integer "client_id", null: false
+    t.integer "master_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["client_id"], name: "index_notes_on_client_id"
+    t.index ["master_id"], name: "index_notes_on_master_id"
+    t.index ["service_id"], name: "index_notes_on_service_id"
+  end
+
+  create_table "service_masters", force: :cascade do |t|
+    t.integer "service_id", null: false
+    t.integer "master_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["master_id"], name: "index_service_masters_on_master_id"
+    t.index ["service_id"], name: "index_service_masters_on_service_id"
+  end
+
+  create_table "service_materials", force: :cascade do |t|
+    t.float "required_quantity"
+    t.integer "service_id", null: false
+    t.integer "material_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["material_id"], name: "index_service_materials_on_material_id"
+    t.index ["service_id"], name: "index_service_materials_on_service_id"
+  end
+
+  create_table "services", force: :cascade do |t|
+    t.string "title"
+    t.text "description"
+    t.string "duration"
+    t.float "price"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
   create_table "users", force: :cascade do |t|
     t.string "email"
     t.string "password_digest"
-    t.integer "role"
     t.string "phone"
     t.boolean "active"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
   end
 
+  add_foreign_key "notes", "clients"
+  add_foreign_key "notes", "masters"
+  add_foreign_key "notes", "services"
+  add_foreign_key "service_masters", "masters"
+  add_foreign_key "service_masters", "services"
+  add_foreign_key "service_materials", "materials"
+  add_foreign_key "service_materials", "services"
 end
