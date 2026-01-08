@@ -16,5 +16,9 @@ Rails.application.routes.draw do
     resources :services
     resources :users
 
+    namespace :materials do
+      post :add, to: 'operations#add'
+      post :substract, to: 'operations#substract'
+    end
   end
 end
