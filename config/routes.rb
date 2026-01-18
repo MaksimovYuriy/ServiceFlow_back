@@ -14,6 +14,7 @@ Rails.application.routes.draw do
     resources :materials
     resources :masters
     resources :services
+    resources :service_materials
     resources :users
 
     namespace :materials do

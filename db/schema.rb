@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_01_08_073613) do
+ActiveRecord::Schema[7.1].define(version: 2026_01_18_144118) do
   create_table "clients", force: :cascade do |t|
     t.string "full_name"
     t.string "phone"
@@ -73,7 +73,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_01_08_073613) do
   end
 
   create_table "service_materials", force: :cascade do |t|
-    t.float "required_quantity"
+    t.integer "required_quantity"
     t.integer "service_id", null: false
     t.integer "material_id", null: false
     t.datetime "created_at", null: false
