@@ -1,18 +1,20 @@
 class ApplicationController < ActionController::Base
-    before_action :authenticate!
+  before_action :authenticate!
+  
+  include Graphiti::Rails::Responders
 
-    include Graphiti::Rails::Responders
+  private
 
-    private
+  def authenticate!
+    header = request.headers['Authorization']
+    token = header&.split(' ')&.last
 
-    def authenticate!
-        header = request.headers['Authorization']
-        token = header&.split(' ')&.last
-
-        if token
-            @current_user = User.from_jwt(token)
-        end
-
-        render json: { error: 'Unauthorized' }, status: :unauthorized unless @current_user
+    if token
+      Rails.logger.debug "Start fetching user"
+      @current_user = User.from_jwt(token)
+      Rails.logger.debug "Finished fetching user"
     end
+
+    render json: { error: 'Unauthorized' }, status: :unauthorized unless @current_user
+  end
 end

@@ -10,7 +10,6 @@ class MastersController < ApplicationController
   end
 
   def create
-    debugger
     master = MasterResource.build(params)
 
     if master.save

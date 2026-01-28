@@ -2,6 +2,9 @@ source "https://rubygems.org"
 
 ruby "3.3.0"
 
+gem 'redis'
+gem 'redis-rails'
+
 # Graphiti
 gem "graphiti"
 gem "graphiti-rails"

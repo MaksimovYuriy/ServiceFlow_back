@@ -1,20 +1,19 @@
 class User < ApplicationRecord
-    has_secure_password
+  has_secure_password
+  validates :email, presence: true, uniqueness: true
 
-    validates :email, presence: true, uniqueness: true
+  def generate_jwt
+    JwtService.encode(id: id, email: email, phone: phone, active: active)
+  end
 
-    def generate_jwt
-        JwtService.new(:encode, id: id, email: email, phone: phone, active: active).call
-    end
+  def self.from_jwt(token)
+    payload = JwtService.decode_silent(token)
+    find(payload[:id]) if payload
+  end
 
-    def self.from_jwt(token)
-        payload = JwtService.new(:decode, token: token).call
-        find(payload[:id]) if payload
-    end
+  private
 
-    private
-
-    def downcase_email
-        self.email = email.downcase_email if email.present?
-    end 
+  def downcase_email
+    self.email = email.downcase if email.present?
+  end 
 end

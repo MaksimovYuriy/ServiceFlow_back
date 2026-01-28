@@ -1,36 +1,48 @@
 class JwtService
-    SECRET_KEY = Rails.application.secret_key_base
+  SECRET_KEY = Rails.application.secret_key_base
+  ALGORITHM = 'HS256'.freeze
+  DEFAULT_EXPIRY = 12.hours
+  
+  class << self
+    def encode(**data)
+      data[:exp] = DEFAULT_EXPIRY.from_now.to_i
+      JWT.encode(data, SECRET_KEY, ALGORITHM)
+    end
     
-    def initialize(action, **data)
-        @data = data
-        @action = action
-    end
-
-    def call
-        case @action
-        when :encode
-            encode
-        when :decode
-            decode
-        else
-            raise StandardError, 'Unknown jwt action'
-        end
-    end
-
-    private
-
-    def encode
-        @data[:exp] = 12.hours.from_now.to_i
-        JWT.encode(@data, SECRET_KEY)
-    end
-
-    def decode
-        body = JWT.decode(@data[:token], SECRET_KEY)[0]
+    def decode(token)
+      return nil if token.blank?
+      
+      begin
+        body = JWT.decode(
+          token, 
+          SECRET_KEY, 
+          true, 
+          { algorithm: ALGORITHM }
+        )[0]
+        
         HashWithIndifferentAccess.new(body)
-    rescue JWT::ExpiredSignature
+      rescue JWT::ExpiredSignature
         raise StandardError, 'Token has expired'
-    rescue JWT::DecodeError
+      rescue JWT::DecodeError
         raise StandardError, 'Invalid token'
+      end
     end
     
+    def decode_silent(token)
+      return nil if token.blank?
+      
+      begin
+        body = JWT.decode(
+          token,
+          SECRET_KEY,
+          true,
+          { algorithm: ALGORITHM }
+        )[0]
+        
+        HashWithIndifferentAccess.new(body)
+      rescue
+        nil
+      end
+    end
+  end
 end
