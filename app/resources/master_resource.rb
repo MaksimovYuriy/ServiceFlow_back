@@ -5,4 +5,8 @@ class MasterResource < ApplicationResource
   attribute :salary, :integer
   attribute :phone, :string
   attribute :active, :boolean
+
+  attribute :full_name, :string do
+    "#{@object.first_name} #{@object.last_name}"
+  end
 end

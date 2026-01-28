@@ -12,7 +12,7 @@ class ServiceMaterialResource < ApplicationResource
 
     filter :service_id, :integer do
         eq do |scope, value|
-        scope.where(service_id: value)
+            scope.where(service_id: value)
         end
     end
 end
