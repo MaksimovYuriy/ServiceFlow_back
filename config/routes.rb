@@ -12,7 +12,11 @@ Rails.application.routes.draw do
 
   scope path: ApplicationResource.endpoint_namespace, defaults: { format: :jsonapi } do
     resources :materials
-    resources :masters
+
+    resources :masters do
+      resources :schedules, only: %i[index create destroy], controller: "masters/schedules"
+    end
+
     resources :services
     resources :service_materials
     resources :service_masters

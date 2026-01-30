@@ -1,0 +1,13 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  master: one
+  weekday: 1
+  start_time: 2026-01-30 10:50:59
+  end_time: 2026-01-30 10:50:59
+
+two:
+  master: two
+  weekday: 1
+  start_time: 2026-01-30 10:50:59
+  end_time: 2026-01-30 10:50:59
