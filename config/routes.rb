@@ -15,6 +15,11 @@ Rails.application.routes.draw do
 
     resources :masters do
       resources :schedules, only: %i[index create destroy], controller: "masters/schedules"
+
+      member do
+        get :available_dates
+        get :available_slots
+      end
     end
 
     resources :services
@@ -28,10 +33,6 @@ Rails.application.routes.draw do
     end
 
     resources :notes do
-      collection do
-        get :available_slots
-      end
-
       member do
         patch :cancel
         patch :complete
