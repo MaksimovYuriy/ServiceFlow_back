@@ -1,15 +1,15 @@
 class ServicesController < ApplicationController
+  skip_before_action :authenticate!, only: [:index, :available_slots]
+
   def index
     services = ServiceResource.all(params)
     respond_with(services)
   end
 
-  def show
-    service = ServiceResource.find(params)
-    respond_with(service)
-  end
-
   def create
+    # Поиск клиента в базе по введённым данным
+    # Если нет - создаем, если есть - возвращаем найденного
+    # Создаем объект записи - статус pending
     service = ServiceResource.build(params)
 
     if service.save
@@ -19,23 +19,21 @@ class ServicesController < ApplicationController
     end
   end
 
-  def update
-    service = ServiceResource.find(params)
-
-    if service.update_attributes
-      render jsonapi: service
-    else
-      render jsonapi_errors: service
-    end
+  def cancel
+    # Запись отменена
   end
 
-  def destroy
-    service = ServiceResource.find(params)
+  def complete
+    # Услуга оказана
+  end
 
-    if service.destroy
-      render jsonapi: { meta: {} }, status: 200
-    else
-      render jsonapi_errors: service
-    end
+  def available_slots
+    # доступные слоты для записи
+  end
+
+  private
+
+  def set_note
+    @note = Note.find(params[:id])
   end
 end

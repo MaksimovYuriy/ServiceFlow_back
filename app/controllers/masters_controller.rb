@@ -1,4 +1,6 @@
 class MastersController < ApplicationController
+  skip_before_action :authenticate!, only: [:index]
+
   def index
     masters = MasterResource.all(params)
     respond_with(masters)

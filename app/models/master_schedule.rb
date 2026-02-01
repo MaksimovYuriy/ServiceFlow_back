@@ -4,6 +4,7 @@ class MasterSchedule < ApplicationRecord
   validates :weekday, inclusion: { in: 0..6 }
   validates :start_time, :end_time, presence: true
   validate :end_after_start
+  validate :no_overlap
 
   def end_after_start
     return if start_time.blank? || end_time.blank?

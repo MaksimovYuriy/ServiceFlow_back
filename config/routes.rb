@@ -26,5 +26,16 @@ Rails.application.routes.draw do
       post :add, to: 'operations#add'
       post :substract, to: 'operations#substract'
     end
+
+    resources :notes do
+      collection do
+        get :available_slots
+      end
+
+      member do
+        patch :cancel
+        patch :complete
+      end
+    end
   end
 end

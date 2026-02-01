@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_01_30_075059) do
+ActiveRecord::Schema[7.1].define(version: 2026_02_01_163746) do
   create_table "clients", force: :cascade do |t|
     t.string "full_name"
     t.string "phone"
@@ -60,7 +60,6 @@ ActiveRecord::Schema[7.1].define(version: 2026_01_30_075059) do
   end
 
   create_table "notes", force: :cascade do |t|
-    t.datetime "date"
     t.integer "status"
     t.float "total_price"
     t.integer "service_id", null: false
@@ -68,6 +67,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_01_30_075059) do
     t.integer "master_id", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.datetime "start_at", null: false
+    t.datetime "end_at", null: false
     t.index ["client_id"], name: "index_notes_on_client_id"
     t.index ["master_id"], name: "index_notes_on_master_id"
     t.index ["service_id"], name: "index_notes_on_service_id"
