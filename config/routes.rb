@@ -11,6 +11,8 @@ Rails.application.routes.draw do
   post '/auth/sign_in'
 
   scope path: ApplicationResource.endpoint_namespace, defaults: { format: :jsonapi } do
+    resources :clients
+    resources :notes
     resources :materials
 
     resources :masters do

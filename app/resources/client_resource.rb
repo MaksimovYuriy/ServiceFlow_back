@@ -1,0 +1,2 @@
+class ClientResource < ApplicationResource
+end
