@@ -1,5 +1,6 @@
 class MaterialOperation < ApplicationRecord
   belongs_to :material
+  belongs_to :note, optional: true
 
   enum status: {
     pending: 0,

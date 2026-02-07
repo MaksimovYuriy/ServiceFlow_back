@@ -3,6 +3,8 @@ class Note < ApplicationRecord
   belongs_to :client
   belongs_to :master
 
+  has_many :material_operations, dependent: :nullify
+
   validates :start_at, :end_at, presence: true
   validate :end_after_start
   validate :no_overlap

@@ -10,7 +10,7 @@ module Materials
 
     def initialize(action, params)
         @action = action.to_sym
-        @params = params.to_unsafe_h.symbolize_keys
+        @params = params.try(:to_unsafe_h)&.symbolize_keys || params.symbolize_keys
     end
 
     def call

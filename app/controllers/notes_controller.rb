@@ -2,14 +2,23 @@ class NotesController < ApplicationController
   skip_before_action :authenticate!, only: [:create]
 
   def create
-    debugger
     client = Client.find_or_create_by!(phone: client_params[:phone])
+    client.update(full_name: client_params[:full_name], telegram: client_params[:telegram])
     
     note = NoteResource.build(note_params(client))
-    if note.save
-      render jsonapi: note, status: 201
-    else
-      render jsonapi_errors: note
+    
+    ActiveRecord::Base.transaction do
+      if note.save
+        begin
+          ConsumeMaterialsService.new(note).call
+          render jsonapi: note, status: 201
+        rescue Materials::OperationsProvider::NotEnoughMaterial => e
+          note.data.destroy
+          render json: { error: "Недостаточно материалов: #{e.message}" }, status: :unprocessable_entity
+        end
+      else
+        render jsonapi_errors: note
+      end
     end
   end
 
