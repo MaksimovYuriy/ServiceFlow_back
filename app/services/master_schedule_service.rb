@@ -11,32 +11,30 @@ class MasterScheduleService
   end
 
   def available_slots(date, step_minutes = 60)
-    schedules = @master.master_schedules.where(weekday: date.wday)
+    schedule = @master.master_schedules.find_by(weekday: date.wday)
+    return [] unless schedule
 
-    bookings = @master.notes.where(start_at: date.beginning_of_day..date.end_of_day)
+    bookings_ranges = @master.notes.where(start_at: date.beginning_of_day..date.end_of_day)
+                                   .map { |b| (b.start_at.utc...b.end_at.utc) }
+
+    start_time = Time.zone.parse("#{date} #{schedule.start_time}").utc
+    end_time = Time.zone.parse("#{date} #{schedule.end_time}").utc
 
     slots = []
+    current_start = start_time
 
-    schedules.each do |schedule|
-        start_time = Time.zone.parse("#{date} #{schedule.start_time}")
-        end_time = Time.zone.parse("#{date} #{schedule.end_time}")
+    while (current_start + step_minutes.minutes) <= end_time
+      current_end = current_start + step_minutes.minutes
 
-        current_start = start_time
+      unless bookings_ranges.any? { |range| (current_start...current_end).overlaps?(range) }
+        slots << { start_time: current_start.strftime("%H:%M"), end_time: current_end.strftime("%H:%M") }
+      end
 
-        while (current_start + step_minutes.minutes) <= end_time
-            current_end = current_start + step_minutes.minutes
-
-            unless bookings.any? { |b| (current_start...current_end).overlaps?(b.start_at...b.end_at) }
-                slots << { start_time: current_start.strftime("%H:%M"), end_time: current_end.strftime("%H:%M") }
-            end
-
-            current_start = current_end
-        end
+      current_start = current_end
     end
 
     slots
   end
-
 
   private
 
