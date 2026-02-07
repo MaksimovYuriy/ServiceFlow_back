@@ -11,6 +11,7 @@ class NotesController < ApplicationController
       if note.save
         begin
           ConsumeMaterialsService.new(note).call
+          DiscontService.new(note).call
           render jsonapi: note, status: 201
         rescue Materials::OperationsProvider::NotEnoughMaterial => e
           note.data.destroy
