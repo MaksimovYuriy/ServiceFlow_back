@@ -8,13 +8,16 @@ class DiscontService
     end
 
     def call
-        debugger
-        @note.update(total_price: calculate_new_price) if @client.notes.count == 1
+        if @client.notes.count == 1
+            @note.update(total_price: calculate_discont_price)
+        else
+            @note.update(total_price: @service.price)
+        end
     end
 
     private
 
-    def calculate_new_price
+    def calculate_discont_price
         default_price = @service.price
         default_price * (100 - FIRST_DISCONT_PERCENT) / 100
     end
