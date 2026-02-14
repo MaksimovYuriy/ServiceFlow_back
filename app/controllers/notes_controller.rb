@@ -1,6 +1,15 @@
 class NotesController < ApplicationController
   skip_before_action :authenticate!, only: [:create]
 
+  def index
+    unless index_params[:date].present?
+      return render json: { error: 'filter[date] id required' }, status: :bad_request
+    end
+
+    notes = NoteResource.all(params)
+    respond_with(notes)
+  end
+
   def create
     client = Client.find_or_create_by!(phone: client_params[:phone])
     client.update(full_name: client_params[:full_name], telegram: client_params[:telegram])
@@ -23,7 +32,30 @@ class NotesController < ApplicationController
     end
   end
 
+  def complete
+    debugger
+    note = Note.find(params[:id])
+
+    unless note.status == "pending"
+      return render json: { error: 'Note is not pending' }, status: :unprocessable_entity
+    end
+
+    if note.update(status: "completed")
+      render json: { success: true }
+    else
+      return render json: { error: note.errors.full_messages }, status: :unprocessable_entity
+    end
+  end
+
+  def cancel
+
+  end
+
   private
+
+  def index_params
+    params.require(:filter).permit(:date)
+  end
 
   def client_params
     params.require(:data).require(:attributes).require(:client)
