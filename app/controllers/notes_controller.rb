@@ -33,7 +33,6 @@ class NotesController < ApplicationController
   end
 
   def complete
-    debugger
     note = Note.find(params[:id])
 
     unless note.status == "pending"
@@ -48,7 +47,20 @@ class NotesController < ApplicationController
   end
 
   def cancel
+    note = Note.find(params[:id])
 
+    unless note.status == "pending"
+      return render json: { error: 'Note is not pending' }, status: :unprocessable_entity
+    end
+
+    ActiveRecord::Base.transaction do
+      note.update!(status: "canceled")
+      ReturnMaterialsService.new(note).call
+    end
+
+    render json: { success: true }
+  rescue ActiveRecord::RecordInvalid, StandardError => e
+    render json: { error: e.message }, status: :unprocessable_entity
   end
 
   private

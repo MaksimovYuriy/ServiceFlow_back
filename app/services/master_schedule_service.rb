@@ -11,10 +11,12 @@ class MasterScheduleService
   end
 
   def available_slots(date, step_minutes = 60)
+    debugger
     schedule = @master.master_schedules.find_by(weekday: date.wday)
     return [] unless schedule
 
-    bookings_ranges = @master.notes.where(start_at: date.beginning_of_day..date.end_of_day)
+    bookings_ranges = @master.notes.actuals
+                                   .where(start_at: date.beginning_of_day..date.end_of_day)
                                    .map { |b| (b.start_at.utc...b.end_at.utc) }
 
     start_time = Time.zone.parse("#{date} #{schedule.start_time}").utc

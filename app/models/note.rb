@@ -15,6 +15,10 @@ class Note < ApplicationRecord
     completed: 2
   }
 
+  scope :actuals, -> {
+    where.not(status: 'canceled')
+  }
+
   def end_after_start
     return if start_at.blank? || end_at.blank?
     errors.add(:end_at, 'must be after start_at') if end_at <= start_at
