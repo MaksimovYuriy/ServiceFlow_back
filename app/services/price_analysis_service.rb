@@ -3,8 +3,6 @@ require 'csv'
 class PriceAnalysisService
   ALPHA = 0.05
   BETA  = 0.03
-  START_DATE = Date.new(2024, 1, 1)
-  END_DATE   = Date.new(2026, 2, 28)
 
   def call
     services = Service.all.includes(service_materials: :material)
@@ -13,7 +11,7 @@ class PriceAnalysisService
     notes_data         = preload_notes_data
     first_visit_counts = preload_first_visit_counts
     material_costs     = compute_material_costs(services)
-    months             = generate_months
+    months             = generate_months(services)
 
     rows = []
 
@@ -60,10 +58,16 @@ class PriceAnalysisService
 
   private
 
-  def generate_months
+  def generate_months(services)
+    first_note = Note.completed.minimum(:start_at)
+    return [] unless first_note
+
+    start_date = first_note.to_date.beginning_of_month
+    end_date = Date.today.beginning_of_month
+
     months = []
-    date = START_DATE
-    while date <= END_DATE
+    date = start_date
+    while date <= end_date
       months << [date.year, date.month]
       date = date.next_month
     end
