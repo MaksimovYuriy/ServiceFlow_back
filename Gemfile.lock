@@ -89,7 +89,7 @@ GEM
     builder (3.3.0)
     cgi (0.5.0)
     concurrent-ruby (1.3.5)
-    connection_pool (2.5.4)
+    connection_pool (2.5.5)
     crass (1.0.6)
     date (3.5.0)
     debug (1.11.0)
@@ -137,6 +137,7 @@ GEM
       pp (>= 0.6.0)
       rdoc (>= 4.0.0)
       reline (>= 0.4.2)
+    json (2.18.1)
     jsonapi-renderer (0.2.2)
     jsonapi-serializable (0.3.1)
       jsonapi-renderer (~> 0.2.0)
@@ -281,6 +282,12 @@ GEM
       actionpack (>= 7.0)
       railties (>= 7.0)
     securerandom (0.4.1)
+    sidekiq (8.0.10)
+      connection_pool (>= 2.5.0)
+      json (>= 2.9.0)
+      logger (>= 1.6.2)
+      rack (>= 3.1.0)
+      redis-client (>= 0.23.2)
     sqlite3 (2.7.4-aarch64-linux-gnu)
     sqlite3 (2.7.4-aarch64-linux-musl)
     sqlite3 (2.7.4-arm-linux-gnu)
@@ -315,6 +322,7 @@ PLATFORMS
 DEPENDENCIES
   bcrypt
   bootsnap
+  connection_pool (~> 2.4)
   debug
   graphiti
   graphiti-rails
@@ -327,6 +335,7 @@ DEPENDENCIES
   redis
   redis-rails
   responders
+  sidekiq
   sqlite3 (>= 1.4)
   tzinfo-data
 

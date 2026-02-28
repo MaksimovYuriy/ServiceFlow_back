@@ -10,6 +10,8 @@ Rails.application.routes.draw do
 
   post '/auth/sign_in'
 
+  post '/api/price_analysis', to: 'price_analysis#create'
+
   scope path: ApplicationResource.endpoint_namespace, defaults: { format: :jsonapi } do
     resources :clients
     resources :notes

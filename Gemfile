@@ -4,6 +4,8 @@ ruby "3.3.0"
 
 gem 'redis'
 gem 'redis-rails'
+gem 'sidekiq'
+gem 'connection_pool', '~> 2.4'
 
 # Graphiti
 gem "graphiti"
