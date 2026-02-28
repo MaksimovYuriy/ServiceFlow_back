@@ -12,6 +12,12 @@ class PriceAnalysisController < ApplicationController
     end
 
     predictions = JSON.parse(File.read(PREDICTIONS_PATH))
+    service_titles = Service.where(id: predictions.map { |p| p['service_id'] }).pluck(:id, :title).to_h
+
+    predictions.each do |p|
+      p['service_title'] = service_titles[p['service_id']]
+    end
+
     render json: { predictions: predictions }
   end
 end
