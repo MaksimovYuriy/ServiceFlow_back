@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_02_07_102910) do
+ActiveRecord::Schema[7.1].define(version: 2026_02_28_133554) do
   create_table "clients", force: :cascade do |t|
     t.string "full_name"
     t.string "phone"
@@ -59,6 +59,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_02_07_102910) do
     t.integer "minimal_quantity"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.float "price"
   end
 
   create_table "notes", force: :cascade do |t|
