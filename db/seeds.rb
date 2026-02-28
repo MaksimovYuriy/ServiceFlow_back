@@ -44,33 +44,33 @@ services_data = [
     description: "Классическая мужская стрижка" },
   { title: "Детская стрижка",             price: 600,  duration: "30",  active: true,
     description: "Стрижка для детей до 12 лет" },
-  { title: "Окрашивание в один тон",      price: 3500, duration: "90",  active: true,
+  { title: "Окрашивание в один тон",      price: 3500, duration: "60",  active: true,
     description: "Окрашивание волос в один цвет" },
-  { title: "Мелирование",                 price: 4500, duration: "120", active: true,
+  { title: "Мелирование",                 price: 4500, duration: "60",  active: true,
     description: "Частичное осветление прядей" },
-  { title: "Балаяж",                      price: 5000, duration: "120", active: true,
+  { title: "Балаяж",                      price: 5000, duration: "60",  active: true,
     description: "Техника окрашивания балаяж" },
   { title: "Тонирование волос",           price: 2500, duration: "60",  active: true,
     description: "Тонирование после осветления" },
   { title: "Укладка феном",               price: 1000, duration: "40",  active: true,
     description: "Укладка феном и брашингом" },
-  { title: "Вечерняя укладка",            price: 2500, duration: "90",  active: true,
+  { title: "Вечерняя укладка",            price: 2500, duration: "60",  active: true,
     description: "Праздничная причёска" },
-  { title: "Ламинирование волос",         price: 3000, duration: "90",  active: true,
+  { title: "Ламинирование волос",         price: 3000, duration: "60",  active: true,
     description: "Восстанавливающее ламинирование" },
-  { title: "Кератиновое выпрямление",     price: 4500, duration: "120", active: true,
+  { title: "Кератиновое выпрямление",     price: 4500, duration: "60",  active: true,
     description: "Выпрямление и восстановление кератином" },
   { title: "Маникюр классический",        price: 1200, duration: "60",  active: true,
     description: "Обрезной маникюр" },
-  { title: "Маникюр с покрытием гель-лак",price: 2000, duration: "90",  active: true,
+  { title: "Маникюр с покрытием гель-лак",price: 2000, duration: "60",  active: true,
     description: "Маникюр + гель-лак" },
   { title: "Педикюр классический",        price: 1500, duration: "60",  active: true,
     description: "Обрезной педикюр" },
-  { title: "Педикюр с покрытием гель-лак",price: 2500, duration: "90",  active: true,
+  { title: "Педикюр с покрытием гель-лак",price: 2500, duration: "60",  active: true,
     description: "Педикюр + гель-лак" },
   { title: "Уход за лицом базовый",       price: 2000, duration: "60",  active: true,
     description: "Очищение, тонизирование, увлажнение" },
-  { title: "Уход за лицом премиум",       price: 3500, duration: "90",  active: true,
+  { title: "Уход за лицом премиум",       price: 3500, duration: "60",  active: true,
     description: "Комплексный уход с массажем и маской" },
   { title: "Депиляция воском (ноги)",     price: 1800, duration: "60",  active: true,
     description: "Восковая депиляция ног полностью" },
@@ -84,7 +84,7 @@ services_data = [
     description: "Классическое бритьё опасной бритвой" },
   { title: "Spa-уход для рук",            price: 1500, duration: "60",  active: false,
     description: "Парафинотерапия и массаж рук" },
-  { title: "Наращивание ресниц",          price: 3000, duration: "120", active: false,
+  { title: "Наращивание ресниц",          price: 3000, duration: "60",  active: false,
     description: "Поресничное наращивание (временно недоступно)" },
   { title: "Стрижка бороды",              price: 500,  duration: "30",  active: false,
     description: "Моделирование бороды (временно недоступно)" },
@@ -397,9 +397,8 @@ Service.where(active: true).each do |s|
   service_weights[s.id] = w
 end
 
-# --- Slot tracking to prevent overlaps ---
-# { master_id => { "YYYY-MM-DD" => [[start_min, end_min], ...] } }
-occupied = Hash.new { |h, k| h[k] = Hash.new { |h2, k2| h2[k2] = [] } }
+# --- Slot tracking: master_id => { "YYYY-MM-DD" => Set of taken hours } ---
+occupied = Hash.new { |h, k| h[k] = Hash.new { |h2, k2| h2[k2] = Set.new } }
 
 # --- Generate notes ---
 note_rows = []
@@ -431,6 +430,14 @@ months_to_generate.each do |year, month|
       sched = master_scheds.dig(master.id, wday)
       next unless sched
 
+      # Available hourly slots: e.g. 9,10,11,...,17 for 9:00-18:00
+      all_hours = (sched[:start_hour]...sched[:end_hour]).to_a
+      free_hours = all_hours - occupied[master.id][date.to_s].to_a
+      next if free_hours.empty?
+
+      # Pick random free hour
+      slot_hour = free_hours[rng.rand(free_hours.size)]
+
       # Pick weighted random service this master can do
       available_service_ids = master_services[master.id]
       next if available_service_ids.nil? || available_service_ids.empty?
@@ -447,37 +454,9 @@ months_to_generate.each do |year, month|
           break
         end
       end
-      duration   = service_durations[service_id]
-      next unless duration && duration > 0
 
-      # Work window in minutes from midnight
-      day_start = sched[:start_hour] * 60
-      day_end   = sched[:end_hour]   * 60
-
-      next if day_start + duration > day_end
-
-      # Find a free slot (first-fit)
-      existing   = occupied[master.id][date.to_s].sort_by(&:first)
-      slot_start = nil
-      cursor     = day_start
-
-      existing.each do |booked_start, booked_end|
-        if cursor + duration <= booked_start
-          slot_start = cursor
-          break
-        end
-        cursor = [cursor, booked_end].max
-      end
-
-      # Check gap after last booking
-      if slot_start.nil? && cursor + duration <= day_end
-        slot_start = cursor
-      end
-
-      next unless slot_start
-
-      slot_end = slot_start + duration
-      occupied[master.id][date.to_s] << [slot_start, slot_end]
+      # Mark slot as taken
+      occupied[master.id][date.to_s].add(slot_hour)
 
       # Pick client (80% regular, 20% new)
       client = if rng.rand < 0.8
@@ -486,14 +465,9 @@ months_to_generate.each do |year, month|
         new_clients[rng.rand(new_clients.size)]
       end
 
-      # Build datetimes (UTC to avoid timezone issues with insert_all)
-      start_hour = slot_start / 60
-      start_min  = slot_start % 60
-      end_hour   = slot_end   / 60
-      end_min    = slot_end   % 60
-
-      start_at = Time.utc(year, month, day, start_hour, start_min)
-      end_at   = Time.utc(year, month, day, end_hour,   end_min)
+      # Build datetimes: strict hourly slots (e.g. 13:00 — 14:00)
+      start_at = Time.utc(year, month, day, slot_hour, 0)
+      end_at   = Time.utc(year, month, day, slot_hour + 1, 0)
 
       svc = services_by_id[service_id]
 
@@ -509,7 +483,7 @@ months_to_generate.each do |year, month|
 
       # Отменённые записи освобождают слот
       if note_status == 1
-        occupied[master.id][date.to_s].pop
+        occupied[master.id][date.to_s].delete(slot_hour)
       end
 
       note_rows << {

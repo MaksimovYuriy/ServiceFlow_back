@@ -11,7 +11,6 @@ class MasterScheduleService
   end
 
   def available_slots(date, step_minutes = 60)
-    debugger
     schedule = @master.master_schedules.find_by(weekday: date.wday)
     return [] unless schedule
 

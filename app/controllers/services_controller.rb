@@ -1,5 +1,5 @@
 class ServicesController < ApplicationController
-  skip_before_action :authenticate!, only: [:index, :available_slots]
+  skip_before_action :authenticate!, only: [:index]
 
   def index
     services = ServiceResource.all(params)
@@ -19,16 +19,14 @@ class ServicesController < ApplicationController
     end
   end
 
-  def cancel
-    # Запись отменена
-  end
+  def update
+    service = ServiceResource.find(params)
 
-  def complete
-    # Услуга оказана
-  end
-
-  def available_slots
-    # доступные слоты для записи
+    if service.update_attributes
+      render jsonapi: service
+    else
+      render jsonapi_errors: service
+    end
   end
 
   private
