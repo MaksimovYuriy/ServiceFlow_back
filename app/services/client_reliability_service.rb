@@ -6,9 +6,11 @@ class ClientReliabilityService
     @client = client
   end
 
-  def reliable?
+  def call
     cancellations_count < CANCELLATION_THRESHOLD
   end
+
+  private
 
   def cancellations_count
     Note.where(client_id: @client.id, status: :canceled)

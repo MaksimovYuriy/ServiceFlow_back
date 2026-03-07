@@ -1,6 +1,4 @@
 class NoteResource < ApplicationResource
-    self.default_page_size = 200
-
     attribute :status, :string
     attribute :total_price, :float
     attribute :service_id, :integer

@@ -8,4 +8,5 @@ class ApplicationResource < Graphiti::Resource
   self.adapter = Graphiti::Adapters::ActiveRecord
   self.base_url = Rails.application.routes.default_url_options[:host]
   self.endpoint_namespace = '/api'
+  self.default_page_size = 1000
 end

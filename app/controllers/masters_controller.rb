@@ -43,14 +43,11 @@ class MastersController < ApplicationController
 
   def available_dates
     master = Master.find(params[:id])
-    dates = MasterScheduleService.new(master).available_dates(30)
-    render json: dates
+    render json: AvailableDatesService.new(master).call
   end
 
   def available_slots
     master = Master.find(params[:id])
-    date = params[:date].to_date
-    slots = MasterScheduleService.new(master).available_slots(date)
-    render json: slots
+    render json: AvailableSlotsService.new(master, date: params[:date].to_date).call
   end
 end

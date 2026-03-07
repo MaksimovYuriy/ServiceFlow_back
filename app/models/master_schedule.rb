@@ -10,7 +10,7 @@ class MasterSchedule < ApplicationRecord
     return if start_time.blank? || end_time.blank?
 
     if end_time <= start_time
-      errors.add(:end_time, 'must br after start_time')
+      errors.add(:end_time, 'must be after start_time')
     end
   end
 

@@ -1,12 +1,5 @@
 Rails.application.routes.draw do
-  # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
-
-  # Reveal health status on /up that returns 200 if the app boots with no exceptions, otherwise 500.
-  # Can be used by load balancers and uptime monitors to verify that the app is live.
   get "up" => "rails/health#show", as: :rails_health_check
-
-  # Defines the root path route ("/")
-  # root "posts#index"
 
   post '/auth/sign_in'
 
@@ -18,7 +11,6 @@ Rails.application.routes.draw do
 
   scope path: ApplicationResource.endpoint_namespace, defaults: { format: :jsonapi } do
     resources :clients
-    resources :notes
     resources :materials
 
     resources :masters do
@@ -30,17 +22,17 @@ Rails.application.routes.draw do
       end
     end
 
-    resources :services
-    resources :service_materials
-    resources :service_masters
+    resources :services, only: %i[index show create update]
+    resources :service_materials, only: %i[index create update destroy]
+    resources :service_masters, only: %i[index create destroy]
     resources :users
 
     namespace :materials do
       post :add, to: 'operations#add'
-      post :substract, to: 'operations#substract'
+      post :subtract, to: 'operations#subtract'
     end
 
-    resources :notes do
+    resources :notes, only: %i[index create] do
       member do
         patch :cancel
         patch :complete

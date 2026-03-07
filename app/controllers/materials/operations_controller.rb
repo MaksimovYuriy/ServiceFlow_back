@@ -12,7 +12,7 @@ module Materials
             render json: internal_error, status: :unprocessable_entity
         end
 
-        def substract
+        def subtract
             OperationsProvider.call(:apply, 
                                     operation_params.merge(
                                         operation_type: :out,
