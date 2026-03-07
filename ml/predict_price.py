@@ -7,7 +7,7 @@ import torch.nn as nn
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 CSV_PATH = os.path.join(SCRIPT_DIR, '..', 'tmp', 'price_analysis.csv')
-MODEL_PATH = os.path.join(SCRIPT_DIR, 'model.pth')
+MODEL_PATH = os.path.join(SCRIPT_DIR, 'price_model.pth')
 OUTPUT_PATH = os.path.join(SCRIPT_DIR, '..', 'tmp', 'price_predictions.json')
 
 

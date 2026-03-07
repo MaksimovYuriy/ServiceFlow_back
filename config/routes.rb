@@ -13,6 +13,9 @@ Rails.application.routes.draw do
   post '/api/price_analysis', to: 'price_analysis#create'
   get  '/api/price_analysis', to: 'price_analysis#show'
 
+  post '/api/material_forecast', to: 'material_forecast#create'
+  get  '/api/material_forecast', to: 'material_forecast#show'
+
   scope path: ApplicationResource.endpoint_namespace, defaults: { format: :jsonapi } do
     resources :clients
     resources :notes

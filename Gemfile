@@ -6,6 +6,7 @@ gem 'redis'
 gem 'redis-rails'
 gem 'sidekiq'
 gem 'connection_pool', '~> 2.4'
+gem 'rails-erd'
 
 # Graphiti
 gem "graphiti"

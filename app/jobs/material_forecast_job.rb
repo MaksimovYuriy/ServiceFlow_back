@@ -1,20 +1,15 @@
 require 'open3'
 
-class PriceAnalysisJob < ApplicationJob
+class MaterialForecastJob < ApplicationJob
   queue_as :default
 
   VENV_PYTHON = Rails.root.join('ml', 'venv', 'bin', 'python3').to_s
-  TRAIN_SCRIPT = Rails.root.join('ml', 'train_price.py').to_s
-  PREDICT_SCRIPT = Rails.root.join('ml', 'predict_price.py').to_s
+  TRAIN_SCRIPT = Rails.root.join('ml', 'train_materials.py').to_s
+  PREDICT_SCRIPT = Rails.root.join('ml', 'predict_materials.py').to_s
 
   def perform
-    # 1. Generate CSV from DB
-    PriceAnalysisService.new.call
-
-    # 2. Train model
+    MaterialForecastService.new.call
     run_script(TRAIN_SCRIPT)
-
-    # 3. Predict
     run_script(PREDICT_SCRIPT)
   end
 

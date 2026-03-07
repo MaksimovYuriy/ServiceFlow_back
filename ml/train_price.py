@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader, TensorDataset
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 CSV_PATH = os.path.join(SCRIPT_DIR, '..', 'tmp', 'price_analysis.csv')
-MODEL_PATH = os.path.join(SCRIPT_DIR, 'model.pth')
+MODEL_PATH = os.path.join(SCRIPT_DIR, 'price_model.pth')
 
 FEATURES = [
     'base_price', 'is_active', 'total_bookings', 'revenue',

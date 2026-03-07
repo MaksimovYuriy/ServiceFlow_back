@@ -1,0 +1,403 @@
+@startuml ServiceFlow Class Diagram
+
+skinparam classAttributeIconSize 0
+skinparam classFontSize 12
+skinparam packageFontSize 14
+skinparam linetype ortho
+
+' ===== MODELS =====
+package "Models" {
+
+  class User {
+    - id : integer
+    - email : string
+    - password_digest : string
+    - phone : string
+    - active : boolean
+    - created_at : datetime
+    - updated_at : datetime
+    --
+    + has_secure_password
+    + generate_jwt() : String
+    + {static} from_jwt(token) : User
+  }
+
+  class Master {
+    - id : integer
+    - phone : string
+    - first_name : string
+    - middle_name : string
+    - last_name : string
+    - salary : integer
+    - active : boolean
+    - created_at : datetime
+    - updated_at : datetime
+  }
+
+  class MasterSchedule {
+    - id : integer
+    - master_id : integer
+    - weekday : integer
+    - start_time : time
+    - end_time : time
+    - created_at : datetime
+    - updated_at : datetime
+    --
+    + start_time_hh_mm() : String
+    + end_time_hh_mm() : String
+    .. validations ..
+    weekday in 0..6
+    end_after_start
+    no_overlap
+  }
+
+  class Service {
+    - id : integer
+    - title : string
+    - description : text
+    - duration : string
+    - price : integer
+    - active : boolean
+    - created_at : datetime
+    - updated_at : datetime
+  }
+
+  class Client {
+    - id : integer
+    - full_name : string
+    - phone : string
+    - telegram : string
+    - created_at : datetime
+    - updated_at : datetime
+  }
+
+  class Note <<Booking>> {
+    - id : integer
+    - status : integer
+    - total_price : float
+    - service_id : integer
+    - client_id : integer
+    - master_id : integer
+    - start_at : datetime
+    - end_at : datetime
+    - created_at : datetime
+    - updated_at : datetime
+    --
+    .. enum status ..
+    pending = 0
+    canceled = 1
+    completed = 2
+    .. scopes ..
+    + actuals()
+    .. validations ..
+    end_after_start
+    no_overlap
+  }
+
+  class Material {
+    - id : integer
+    - title : string
+    - quantity : integer
+    - minimal_quantity : integer
+    - price : float
+    - created_at : datetime
+    - updated_at : datetime
+  }
+
+  class MaterialOperation {
+    - id : integer
+    - amount : integer
+    - operation_type : integer
+    - status : integer
+    - source : integer
+    - material_id : integer
+    - note_id : integer
+    - created_at : datetime
+    - updated_at : datetime
+    --
+    .. enum operation_type ..
+    in = 0
+    out = 1
+    .. enum status ..
+    pending = 0
+    applied = 1
+    cancelled = 2
+    .. enum source ..
+    manual = 0
+    booking = 1
+  }
+
+  class ServiceMaterial <<Join>> {
+    - id : integer
+    - required_quantity : integer
+    - service_id : integer
+    - material_id : integer
+    - created_at : datetime
+    - updated_at : datetime
+  }
+
+  class ServiceMaster <<Join>> {
+    - id : integer
+    - service_id : integer
+    - master_id : integer
+    - created_at : datetime
+    - updated_at : datetime
+  }
+}
+
+' ===== MODEL ASSOCIATIONS =====
+Master "1" --> "*" MasterSchedule : has_many\n(dependent: destroy)
+Master "1" --> "*" ServiceMaster : has_many
+Master "1" --> "*" Note : has_many
+
+Service "1" --> "*" ServiceMaterial : has_many
+Service "1" --> "*" ServiceMaster : has_many
+
+Client "1" --> "*" Note : has_many
+
+Note "*" --> "1" Service : belongs_to
+Note "*" --> "1" Client : belongs_to
+Note "*" --> "1" Master : belongs_to
+Note "1" --> "*" MaterialOperation : has_many\n(dependent: nullify)
+
+ServiceMaterial "*" --> "1" Service : belongs_to
+ServiceMaterial "*" --> "1" Material : belongs_to
+
+ServiceMaster "*" --> "1" Service : belongs_to
+ServiceMaster "*" --> "1" Master : belongs_to
+
+Material "1" --> "*" ServiceMaterial : has_many
+MaterialOperation "*" --> "1" Material : belongs_to
+MaterialOperation "*" --> "0..1" Note : belongs_to\n(optional)
+
+
+' ===== SERVICES =====
+package "Services" {
+
+  class JwtService <<Service>> {
+    - {static} SECRET_KEY : String
+    - {static} ALGORITHM : String = "HS256"
+    - {static} DEFAULT_EXPIRY : Duration = 12h
+    --
+    + {static} encode(**data) : String
+    + {static} decode(token) : Hash
+    + {static} decode_silent(token) : Hash?
+  }
+
+  class DiscontService <<Service>> {
+    - note : Note
+    - FIRST_DISCONT_PERCENT : Integer = 10
+    --
+    + initialize(note)
+    + call() : void
+  }
+
+  class ConsumeMaterialsService <<Service>> {
+    - note : Note
+    --
+    + initialize(note)
+    + call() : void
+  }
+
+  class ReturnMaterialsService <<Service>> {
+    - note : Note
+    --
+    + initialize(note)
+    + call() : void
+  }
+
+  class MasterScheduleService <<Service>> {
+    - master : Master
+    --
+    + initialize(master)
+    + available_dates(days_count) : Array
+    + available_slots(date, step_minutes) : Array
+  }
+
+  class "Materials::\nOperationsProvider" as OperationsProvider <<Service>> {
+    - action : Symbol
+    - params : Hash
+    --
+    + {static} call(action, params) : void
+    - apply() : void
+    - confirm() : void
+    - cancel() : void
+    .. exceptions ..
+    InvalidAction
+    InvalidTransition
+    NotEnoughMaterial
+  }
+
+  class PriceAnalysisService <<Service>> {
+    - ALPHA : Float = 0.05
+    - BETA : Float = 0.03
+    --
+    + call() : void
+  }
+}
+
+' Service dependencies
+DiscontService ..> Note : uses
+ConsumeMaterialsService ..> Note : uses
+ConsumeMaterialsService ..> OperationsProvider : calls
+ReturnMaterialsService ..> Note : uses
+ReturnMaterialsService ..> OperationsProvider : calls
+MasterScheduleService ..> Master : uses
+OperationsProvider ..> Material : locks & updates
+OperationsProvider ..> MaterialOperation : creates
+PriceAnalysisService ..> Note : queries
+PriceAnalysisService ..> Service : queries
+
+
+' ===== CONTROLLERS =====
+package "Controllers" {
+
+  abstract class ApplicationController {
+    # @current_user : User
+    --
+    # authenticate!() : void
+  }
+
+  class AuthController {
+    --
+    + sign_in() : JSON
+  }
+
+  class UsersController {
+    --
+    + index() : JSON:API
+    + show() : JSON:API
+    + create() : JSON:API
+    + update() : JSON:API
+    + destroy() : JSON:API
+  }
+
+  class MastersController {
+    --
+    + index() : JSON:API
+    + show() : JSON:API
+    + create() : JSON:API
+    + update() : JSON:API
+    + destroy() : JSON:API
+    + available_dates() : JSON
+    + available_slots() : JSON
+  }
+
+  class ServicesController {
+    --
+    + index() : JSON:API
+    + create() : JSON:API
+    + update() : JSON:API
+  }
+
+  class ClientsController {
+    --
+    + index() : JSON:API
+    + show() : JSON:API
+    + create() : JSON:API
+    + update() : JSON:API
+    + destroy() : JSON:API
+  }
+
+  class NotesController {
+    --
+    + index() : JSON:API
+    + create() : JSON:API
+    + complete() : JSON
+    + cancel() : JSON
+  }
+
+  class "Materials::\nOperationsController" as MatOpsController {
+    --
+    + index() : JSON:API
+    + create() : JSON
+    + cancel() : JSON
+  }
+
+  class ServiceMaterialsController {
+    --
+    + index() : JSON:API
+    + create() : JSON:API
+    + destroy() : JSON:API
+  }
+
+  class ServiceMastersController {
+    --
+    + index() : JSON:API
+    + create() : JSON:API
+    + destroy() : JSON:API
+  }
+
+  class "Masters::\nSchedulesController" as SchedulesController {
+    --
+    + index() : JSON:API
+    + create() : JSON:API
+    + destroy() : JSON:API
+  }
+
+  class PriceAnalysisController {
+    --
+    + create() : JSON
+    + show() : JSON
+  }
+}
+
+ApplicationController <|-- AuthController
+ApplicationController <|-- UsersController
+ApplicationController <|-- MastersController
+ApplicationController <|-- ServicesController
+ApplicationController <|-- ClientsController
+ApplicationController <|-- NotesController
+ApplicationController <|-- MatOpsController
+ApplicationController <|-- ServiceMaterialsController
+ApplicationController <|-- ServiceMastersController
+ApplicationController <|-- SchedulesController
+ApplicationController <|-- PriceAnalysisController
+
+ApplicationController ..> JwtService : authenticate
+MastersController ..> MasterScheduleService : uses
+NotesController ..> ConsumeMaterialsService : uses
+NotesController ..> DiscontService : uses
+NotesController ..> ReturnMaterialsService : uses
+MatOpsController ..> OperationsProvider : uses
+PriceAnalysisController ..> PriceAnalysisService : uses
+
+
+' ===== RESOURCES (Graphiti) =====
+package "Resources (Graphiti)" {
+
+  abstract class ApplicationResource {
+    --
+    adapter: ActiveRecord
+    base_url: /api
+  }
+
+  class UserResource
+  class MasterResource
+  class ServiceResource
+  class ClientResource
+  class NoteResource
+  class MaterialResource
+  class ServiceMaterialResource
+  class ServiceMasterResource
+}
+
+ApplicationResource <|-- UserResource
+ApplicationResource <|-- MasterResource
+ApplicationResource <|-- ServiceResource
+ApplicationResource <|-- ClientResource
+ApplicationResource <|-- NoteResource
+ApplicationResource <|-- MaterialResource
+ApplicationResource <|-- ServiceMaterialResource
+ApplicationResource <|-- ServiceMasterResource
+
+UserResource ..> User : serializes
+MasterResource ..> Master : serializes
+ServiceResource ..> Service : serializes
+ClientResource ..> Client : serializes
+NoteResource ..> Note : serializes
+MaterialResource ..> Material : serializes
+ServiceMaterialResource ..> ServiceMaterial : serializes
+ServiceMasterResource ..> ServiceMaster : serializes
+
+@enduml

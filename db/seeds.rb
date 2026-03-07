@@ -322,20 +322,25 @@ puts "=== Подзадача 3 завершена ==="
 puts "  Clients: #{Client.count}"
 
 # =============================================================================
-# Subtask 4: Notes (~3000 records, 2024-2025, all completed)
+# Subtask 4: Notes (service-driven generation with seasonal profiles)
 # =============================================================================
 puts "=== Подзадача 4: генерация записей ==="
 
-# --- Lookup structures ---
+# --- 4.1 Lookup structures ---
 
-# Which services each master can do
 master_services = {}
 ServiceMaster.all.each do |sm|
   master_services[sm.master_id] ||= []
   master_services[sm.master_id] << sm.service_id
 end
 
-# Master schedules: master_id -> { weekday -> { start_hour:, end_hour: } }
+# Reverse: service_id -> [master_ids who can do it]
+service_masters_map = {}
+ServiceMaster.all.each do |sm|
+  service_masters_map[sm.service_id] ||= []
+  service_masters_map[sm.service_id] << sm.master_id
+end
+
 master_scheds = {}
 MasterSchedule.all.each do |ms|
   master_scheds[ms.master_id] ||= {}
@@ -345,134 +350,118 @@ MasterSchedule.all.each do |ms|
   }
 end
 
-# Service durations in minutes (stored as string)
-service_durations = {}
-Service.all.each { |s| service_durations[s.id] = s.duration.to_i }
-
-# Preload services by id to avoid N+1 inside loop
 services_by_id = Service.all.index_by(&:id)
-
-# Active masters only
 active_masters = masters.select(&:active?)
+active_master_ids = active_masters.map(&:id).to_set
 
-# Client pools
 regular_clients = clients[0..299]
 new_clients     = clients[300..499]
 
-# --- Seasonality (~3-4 клиента/день на мастера) ---
-monthly_targets = {
-   1 => 380,  2 => 400,  3 => 440,  4 => 480,
-   5 => 530,  6 => 580,  7 => 620,  8 => 600,
-   9 => 540, 10 => 480, 11 => 420, 12 => 350
+# --- 4.2 Seasonal profiles per service category ---
+# 12 monthly coefficients (Jan-Dec), 1.0 = baseline
+seasonal_profiles = {
+  haircut:    [0.80, 0.85, 0.95, 1.00, 1.10, 1.20, 1.25, 1.20, 1.10, 1.00, 0.90, 0.75],
+  coloring:   [0.70, 0.80, 1.10, 1.25, 1.20, 1.00, 0.90, 0.85, 1.10, 1.20, 1.00, 0.70],
+  styling:    [0.75, 0.80, 0.90, 0.95, 1.00, 1.10, 1.15, 1.10, 1.00, 0.95, 1.05, 1.30],
+  nails:      [0.85, 0.90, 1.00, 1.05, 1.10, 1.15, 1.20, 1.15, 1.05, 0.95, 0.90, 1.10],
+  face_care:  [1.20, 1.15, 1.10, 1.00, 0.90, 0.80, 0.75, 0.80, 0.90, 1.00, 1.10, 1.15],
+  depilation: [0.50, 0.55, 0.70, 0.90, 1.20, 1.40, 1.50, 1.40, 1.10, 0.75, 0.55, 0.45],
+  brows:      [0.85, 0.90, 1.00, 1.10, 1.15, 1.10, 1.05, 1.00, 1.05, 1.10, 1.00, 0.85],
+  barber:     [0.90, 0.90, 0.95, 1.00, 1.05, 1.10, 1.15, 1.10, 1.05, 1.00, 0.95, 0.85],
 }
 
-# --- Весовые коэффициенты популярности услуг ---
-service_weights = {}
-Service.where(active: true).each do |s|
-  w = case s.title
-      when /Женская стрижка/          then 5.0
-      when /Мужская стрижка/          then 5.0
-      when /Детская стрижка/          then 3.0
-      when /Укладка феном/            then 4.0
-      when /Маникюр классический/     then 4.0
-      when /Маникюр с покрытием/      then 3.5
-      when /Педикюр классический/     then 3.0
-      when /Педикюр с покрытием/      then 2.5
-      when /Оформление бровей/       then 3.0
-      when /Окрашивание бровей/       then 2.5
-      when /Окрашивание в один тон/   then 2.0
-      when /Тонирование/             then 2.0
-      when /Мужское бритьё/          then 2.5
-      when /Депиляция.*подмышки/     then 2.0
-      when /Депиляция.*ноги/         then 1.5
-      when /Уход за лицом базовый/   then 2.0
-      when /Вечерняя укладка/        then 1.5
-      when /Ламинирование/           then 1.0
-      when /Уход за лицом премиум/   then 1.0
-      when /Мелирование/             then 1.0
-      when /Балаяж/                  then 0.7
-      when /Кератиновое/             then 0.5
-      else 1.0
-      end
-  service_weights[s.id] = w
-end
+# --- 4.3 Service config: category + base bookings per month ---
+service_config = {
+  "Женская стрижка"              => { category: :haircut,    base: 45 },
+  "Мужская стрижка"              => { category: :haircut,    base: 45 },
+  "Детская стрижка"              => { category: :haircut,    base: 25 },
+  "Окрашивание в один тон"       => { category: :coloring,   base: 18 },
+  "Мелирование"                  => { category: :coloring,   base: 10 },
+  "Балаяж"                       => { category: :coloring,   base: 7 },
+  "Тонирование волос"            => { category: :coloring,   base: 15 },
+  "Укладка феном"                => { category: :styling,    base: 35 },
+  "Вечерняя укладка"             => { category: :styling,    base: 12 },
+  "Ламинирование волос"          => { category: :coloring,   base: 8 },
+  "Кератиновое выпрямление"      => { category: :coloring,   base: 5 },
+  "Маникюр классический"         => { category: :nails,      base: 35 },
+  "Маникюр с покрытием гель-лак" => { category: :nails,      base: 30 },
+  "Педикюр классический"         => { category: :nails,      base: 25 },
+  "Педикюр с покрытием гель-лак" => { category: :nails,      base: 20 },
+  "Уход за лицом базовый"        => { category: :face_care,  base: 15 },
+  "Уход за лицом премиум"        => { category: :face_care,  base: 8 },
+  "Депиляция воском (ноги)"      => { category: :depilation, base: 12 },
+  "Депиляция воском (подмышки)"  => { category: :depilation, base: 15 },
+  "Оформление бровей"            => { category: :brows,      base: 25 },
+  "Окрашивание бровей и ресниц"  => { category: :brows,      base: 18 },
+  "Мужское бритьё"               => { category: :barber,     base: 20 },
+  "Spa-уход для рук"             => { category: :nails,      base: 5 },
+  "Наращивание ресниц"           => { category: :brows,      base: 5 },
+  "Стрижка бороды"               => { category: :barber,     base: 5 },
+}
 
-# --- Slot tracking: master_id => { "YYYY-MM-DD" => Set of taken hours } ---
+# --- 4.4 Year-over-year growth ---
+year_trend = { 2024 => 1.0, 2025 => 1.10, 2026 => 1.15 }
+
+# --- 4.5 Generate notes ---
 occupied = Hash.new { |h, k| h[k] = Hash.new { |h2, k2| h2[k2] = Set.new } }
-
-# --- Generate notes ---
 note_rows = []
 
-# Январь 2024 — Март 2026
 months_to_generate = (2024..2025).flat_map { |y| (1..12).map { |m| [y, m] } } +
                      [[2026, 1], [2026, 2], [2026, 3]]
 
-months_to_generate.each do |year, month|
-    target       = monthly_targets[month] + rng.rand(-5..5)
-    days_in_month = Date.new(year, month, -1).day
+today = Date.new(2026, 2, 28)
 
-    generated    = 0
-    attempts     = 0
-    max_attempts = target * 5
+months_to_generate.each do |year, month|
+  month_generated = 0
+
+  services.each do |_title, service|
+    cfg = service_config[service.title]
+    next unless cfg
+
+    profile = seasonal_profiles[cfg[:category]]
+    season_coef = profile[month - 1]
+    trend_coef = year_trend[year] || 1.0
+
+    # Target bookings for this service in this month + noise +-10%
+    target = (cfg[:base] * season_coef * trend_coef * (1.0 + rng.rand(-0.1..0.1))).round
+    target = [target, 1].max
+
+    # Masters who can do this service (active only)
+    capable_masters = (service_masters_map[service.id] || []).select { |mid| active_master_ids.include?(mid) }
+    next if capable_masters.empty?
+
+    days_in_month = Date.new(year, month, -1).day
+    generated = 0
+    attempts = 0
+    max_attempts = target * 8
 
     while generated < target && attempts < max_attempts
       attempts += 1
 
-      # Pick random day
-      day  = rng.rand(1..days_in_month)
+      day = rng.rand(1..days_in_month)
       date = Date.new(year, month, day)
-      wday = date.wday   # 0=Sun, 1=Mon, ...
+      wday = date.wday
 
-      # Pick random active master
-      master = active_masters[rng.rand(active_masters.size)]
-
-      # Check master works this weekday
-      sched = master_scheds.dig(master.id, wday)
+      master_id = capable_masters[rng.rand(capable_masters.size)]
+      sched = master_scheds.dig(master_id, wday)
       next unless sched
 
-      # Available hourly slots: e.g. 9,10,11,...,17 for 9:00-18:00
       all_hours = (sched[:start_hour]...sched[:end_hour]).to_a
-      free_hours = all_hours - occupied[master.id][date.to_s].to_a
+      free_hours = all_hours - occupied[master_id][date.to_s].to_a
       next if free_hours.empty?
 
-      # Pick random free hour
       slot_hour = free_hours[rng.rand(free_hours.size)]
+      occupied[master_id][date.to_s].add(slot_hour)
 
-      # Pick weighted random service this master can do
-      available_service_ids = master_services[master.id]
-      next if available_service_ids.nil? || available_service_ids.empty?
-
-      weights = available_service_ids.map { |sid| service_weights[sid] || 1.0 }
-      total_weight = weights.sum
-      roll = rng.rand * total_weight
-      cumulative = 0.0
-      service_id = available_service_ids.last
-      available_service_ids.each_with_index do |sid, i|
-        cumulative += weights[i]
-        if roll < cumulative
-          service_id = sid
-          break
-        end
-      end
-
-      # Mark slot as taken
-      occupied[master.id][date.to_s].add(slot_hour)
-
-      # Pick client (80% regular, 20% new)
       client = if rng.rand < 0.8
         regular_clients[rng.rand(regular_clients.size)]
       else
         new_clients[rng.rand(new_clients.size)]
       end
 
-      # Build datetimes: strict hourly slots (e.g. 13:00 — 14:00)
       start_at = Time.utc(year, month, day, slot_hour, 0)
       end_at   = Time.utc(year, month, day, slot_hour + 1, 0)
 
-      svc = services_by_id[service_id]
-
-      # Определяем статус: будущие — pending, прошлые — completed, ~5% прошлых — canceled
-      today = Date.new(2026, 2, 28)
       note_status = if date > today
         0 # pending
       elsif rng.rand < 0.05
@@ -481,17 +470,16 @@ months_to_generate.each do |year, month|
         2 # completed
       end
 
-      # Отменённые записи освобождают слот
       if note_status == 1
-        occupied[master.id][date.to_s].delete(slot_hour)
+        occupied[master_id][date.to_s].delete(slot_hour)
       end
 
       note_rows << {
         status:      note_status,
-        total_price: svc.price.to_f,
-        service_id:  service_id,
+        total_price: service.price.to_f,
+        service_id:  service.id,
         client_id:   client.id,
-        master_id:   master.id,
+        master_id:   master_id,
         start_at:    start_at,
         end_at:      end_at,
         created_at:  start_at,
@@ -501,10 +489,12 @@ months_to_generate.each do |year, month|
       generated += 1
     end
 
-    puts "  #{year}-#{format('%02d', month)}: #{generated} notes"
+    month_generated += generated
+  end
+
+  puts "  #{year}-#{format('%02d', month)}: #{month_generated} notes"
 end
 
-# Bulk insert in batches of 500
 note_rows.each_slice(500) do |batch|
   Note.insert_all(batch)
 end
@@ -573,8 +563,8 @@ in_rows    = []
 
 Material.all.each do |mat|
   total_consumed   = material_consumption[mat.id] || 0
-  # Buffer: 15% surplus so quantity ends positive
-  total_restock    = (total_consumed * 1.15).ceil
+  # Buffer: 2% surplus — minimal stock remains for realistic forecast demo
+  total_restock    = (total_consumed * 1.02).ceil
   # Ensure at least 1 unit per delivery even if consumption is 0
   per_delivery     = [(total_restock.to_f / num_deliveries).ceil, 1].max
 
