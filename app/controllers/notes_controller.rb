@@ -13,7 +13,13 @@ class NotesController < ApplicationController
   def create
     client = Client.find_or_create_by!(phone: client_params[:phone])
     client.update(full_name: client_params[:full_name], telegram: client_params[:telegram])
-    
+
+    unless ClientReliabilityService.new(client).reliable?
+      return render json: {
+        error: 'Запись для данного клиента временно недоступна из-за частых отмен. Ограничение будет снято автоматически.'
+      }, status: :forbidden
+    end
+
     note = NoteResource.build(note_params(client))
     
     ActiveRecord::Base.transaction do
