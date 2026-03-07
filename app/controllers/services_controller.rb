@@ -7,9 +7,6 @@ class ServicesController < ApplicationController
   end
 
   def create
-    # Поиск клиента в базе по введённым данным
-    # Если нет - создаем, если есть - возвращаем найденного
-    # Создаем объект записи - статус pending
     service = ServiceResource.build(params)
 
     if service.save
@@ -27,11 +24,5 @@ class ServicesController < ApplicationController
     else
       render jsonapi_errors: service
     end
-  end
-
-  private
-
-  def set_note
-    @note = Note.find(params[:id])
   end
 end

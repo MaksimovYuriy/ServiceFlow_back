@@ -3,7 +3,7 @@ class NotesController < ApplicationController
 
   def index
     unless index_params[:date].present?
-      return render json: { error: 'filter[date] id required' }, status: :bad_request
+      return render json: { error: 'filter[date] is required' }, status: :bad_request
     end
 
     notes = NoteResource.all(params)
@@ -11,61 +11,33 @@ class NotesController < ApplicationController
   end
 
   def create
-    client = Client.find_or_create_by!(phone: client_params[:phone])
-    client.update(full_name: client_params[:full_name], telegram: client_params[:telegram])
+    note = CreateNoteService.new(
+      client_params: client_params,
+      note_params: note_params
+    ).call
 
-    unless ClientReliabilityService.new(client).reliable?
-      return render json: {
-        error: 'Запись для данного клиента временно недоступна из-за частых отмен. Ограничение будет снято автоматически.'
-      }, status: :forbidden
-    end
-
-    note = NoteResource.build(note_params(client))
-    
-    ActiveRecord::Base.transaction do
-      if note.save
-        begin
-          ConsumeMaterialsService.new(note).call
-          DiscontService.new(note).call
-          render jsonapi: note, status: 201
-        rescue Materials::OperationsProvider::NotEnoughMaterial => e
-          note.data.destroy
-          render json: { error: "Недостаточно материалов: #{e.message}" }, status: :unprocessable_entity
-        end
-      else
-        render jsonapi_errors: note
-      end
-    end
+    render jsonapi: note, status: 201
+  rescue CreateNoteService::ClientBlocked => e
+    render json: { error: e.message }, status: :forbidden
+  rescue Materials::OperationsProvider::NotEnoughMaterial
+    render json: { error: 'Произошла непредвиденная ошибка, услуга сейчас недоступна для записи' }, status: :unprocessable_entity
+  rescue ActiveRecord::RecordInvalid => e
+    render json: { error: e.message }, status: :unprocessable_entity
   end
 
   def complete
     note = Note.find(params[:id])
-
-    unless note.status == "pending"
-      return render json: { error: 'Note is not pending' }, status: :unprocessable_entity
-    end
-
-    if note.update(status: "completed")
-      render json: { success: true }
-    else
-      return render json: { error: note.errors.full_messages }, status: :unprocessable_entity
-    end
+    CompleteNoteService.new(note).call
+    render json: { success: true }
+  rescue CompleteNoteService::InvalidStatus => e
+    render json: { error: e.message }, status: :unprocessable_entity
   end
 
   def cancel
     note = Note.find(params[:id])
-
-    unless note.status == "pending"
-      return render json: { error: 'Note is not pending' }, status: :unprocessable_entity
-    end
-
-    ActiveRecord::Base.transaction do
-      note.update!(status: "canceled")
-      ReturnMaterialsService.new(note).call
-    end
-
+    CancelNoteService.new(note).call
     render json: { success: true }
-  rescue ActiveRecord::RecordInvalid, StandardError => e
+  rescue CancelNoteService::InvalidStatus => e
     render json: { error: e.message }, status: :unprocessable_entity
   end
 
@@ -79,18 +51,11 @@ class NotesController < ApplicationController
     params.require(:data).require(:attributes).require(:client)
   end
 
-  def note_params(client)
+  def note_params
     attrs = params.require(:data)
                   .require(:attributes)
                   .permit(:master_id, :service_id, :start_at, :end_at)
 
-    filtered_attrs = attrs.except(:client).merge(client_id: client.id)
-
-    filtered_params = {
-      data: {
-        type: params[:data][:type],
-        attributes: filtered_attrs
-      }
-    }
+    { type: params[:data][:type], attributes: attrs.except(:client) }
   end
 end
