@@ -9,6 +9,17 @@ Rails.application.routes.draw do
   post '/api/material_forecast', to: 'material_forecast#create'
   get  '/api/material_forecast', to: 'material_forecast#show'
 
+  namespace :api, defaults: { format: :json } do
+    namespace :analytics do
+      get :summary
+      get :revenue
+      get :masters
+      get :services
+      get :clients
+      get :materials
+    end
+  end
+
   scope path: ApplicationResource.endpoint_namespace, defaults: { format: :jsonapi } do
     resources :clients
     resources :materials
