@@ -1,0 +1,185 @@
+@startuml Models
+
+skinparam classAttributeIconSize 0
+skinparam classFontSize 12
+skinparam packageFontSize 14
+skinparam linetype ortho
+
+class User {
+  - id : integer
+  - email : string
+  - password_digest : string
+  - phone : string
+  - active : boolean
+  --
+  + has_secure_password
+  + generate_jwt() : String
+  + {static} from_jwt(token) : User
+  .. callbacks ..
+  downcase_email (before_save)
+  .. validations ..
+  email: presence, uniqueness
+}
+
+class Master {
+  - id : integer
+  - phone : string
+  - first_name : string
+  - middle_name : string
+  - last_name : string
+  - salary : integer
+  - active : boolean
+  --
+  .. validations ..
+  first_name: presence
+  last_name: presence
+  phone: presence, uniqueness
+}
+
+class MasterSchedule {
+  - id : integer
+  - master_id : integer
+  - weekday : integer
+  - start_time : time
+  - end_time : time
+  --
+  + start_time_hh_mm() : String
+  + end_time_hh_mm() : String
+  .. validations ..
+  weekday in 0..6
+  end_after_start
+  no_overlap
+}
+
+class Service {
+  - id : integer
+  - title : string
+  - description : text
+  - duration : string
+  - price : integer
+  - active : boolean
+  --
+  .. validations ..
+  title: presence
+  price: presence, > 0
+  duration: presence
+}
+
+class Client {
+  - id : integer
+  - full_name : string
+  - phone : string
+  - telegram : string
+  --
+  .. validations ..
+  full_name: presence
+  phone: presence, uniqueness
+}
+
+class Note <<Booking>> {
+  - id : integer
+  - status : integer
+  - total_price : float
+  - service_id : integer
+  - client_id : integer
+  - master_id : integer
+  - start_at : datetime
+  - end_at : datetime
+  --
+  .. enum status ..
+  pending = 0
+  canceled = 1
+  completed = 2
+  .. scopes ..
+  + actuals()
+  .. validations ..
+  start_at: presence
+  end_at: presence
+  end_after_start
+  no_overlap (per master)
+}
+
+class Material {
+  - id : integer
+  - title : string
+  - quantity : integer
+  - minimal_quantity : integer
+  - price : float
+  --
+  .. validations ..
+  title: presence
+  quantity: >= 0
+  minimal_quantity: >= 0
+  price: >= 0
+}
+
+class MaterialOperation {
+  - id : integer
+  - amount : integer
+  - operation_type : integer
+  - status : integer
+  - source : integer
+  - material_id : integer
+  - note_id : integer
+  --
+  .. enum operation_type ..
+  in = 0
+  out = 1
+  .. enum status ..
+  pending = 0
+  applied = 1
+  cancelled = 2
+  .. enum source ..
+  manual = 0
+  booking = 1
+  .. validations ..
+  amount: > 0
+}
+
+class ServiceMaterial <<Join>> {
+  - id : integer
+  - required_quantity : integer
+  - service_id : integer
+  - material_id : integer
+  --
+  .. validations ..
+  required_quantity: presence, > 0
+}
+
+class ServiceMaster <<Join>> {
+  - id : integer
+  - service_id : integer
+  - master_id : integer
+  --
+  .. validations ..
+  service_id: unique per master_id
+}
+
+' === Associations ===
+Master "1" --> "*" MasterSchedule : has_many\n(dependent: destroy)
+Master "1" --> "*" ServiceMaster : has_many\n(dependent: destroy)
+Master "1" --> "*" Note : has_many\n(dependent: restrict)
+
+Service "1" --> "*" ServiceMaterial : has_many\n(dependent: destroy)
+Service "1" --> "*" ServiceMaster : has_many\n(dependent: destroy)
+Service "1" --> "*" Note : has_many\n(dependent: restrict)
+
+Client "1" --> "*" Note : has_many\n(dependent: restrict)
+
+Note "*" --> "1" Service : belongs_to
+Note "*" --> "1" Client : belongs_to
+Note "*" --> "1" Master : belongs_to
+Note "1" --> "*" MaterialOperation : has_many\n(dependent: nullify)
+
+ServiceMaterial "*" --> "1" Service : belongs_to
+ServiceMaterial "*" --> "1" Material : belongs_to
+
+ServiceMaster "*" --> "1" Service : belongs_to
+ServiceMaster "*" --> "1" Master : belongs_to
+
+Material "1" --> "*" ServiceMaterial : has_many\n(dependent: destroy)
+Material "1" --> "*" MaterialOperation : has_many\n(dependent: destroy)
+MaterialOperation "*" --> "1" Material : belongs_to
+MaterialOperation "*" --> "0..1" Note : belongs_to\n(optional)
+
+@enduml

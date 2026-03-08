@@ -1,0 +1,128 @@
+@startuml Resources
+
+skinparam classAttributeIconSize 0
+skinparam classFontSize 12
+skinparam packageFontSize 14
+skinparam linetype ortho
+
+abstract class ApplicationResource {
+  --
+  adapter: ActiveRecord
+  endpoint_namespace: /api
+  default_page_size: 1000
+}
+
+class UserResource {
+  --
+  email : string
+  phone : string
+  active : boolean
+  password : string (write-only)
+  password_confirmation : string (write-only)
+}
+
+class MasterResource {
+  --
+  first_name : string
+  middle_name : string
+  last_name : string
+  phone : string
+  active : boolean
+  salary : integer (write-only)
+  full_name : string (computed)
+  .. filters ..
+  service_id (eq)
+}
+
+class ServiceResource {
+  --
+  title : string
+  description : string
+  duration : string
+  price : integer
+  active : boolean
+  .. relationships ..
+  has_many: service_materials
+}
+
+class ClientResource {
+  --
+  full_name : string
+  phone : string
+  telegram : string
+}
+
+class NoteResource {
+  --
+  status : string
+  total_price : float
+  service_id : integer
+  client_id : integer
+  master_id : integer
+  start_at : datetime
+  end_at : datetime
+  client_name : string (computed)
+  master_name : string (computed)
+  service_title : string (computed)
+  .. relationships ..
+  belongs_to: client, master, service
+  .. filters ..
+  date (eq)
+  .. sort ..
+  start_at
+}
+
+class MaterialResource {
+  --
+  title : string
+  quantity : integer
+  minimal_quantity : integer
+  price : float
+  .. relationships ..
+  has_many: service_materials
+}
+
+class ServiceMaterialResource {
+  --
+  required_quantity : integer
+  service_id : integer
+  material_id : integer
+  material_title : string (computed)
+  .. relationships ..
+  belongs_to: service, material
+  .. filters ..
+  service_id (eq)
+}
+
+class ServiceMasterResource {
+  --
+  service_id : integer
+  master_id : integer
+  master_name : string (computed)
+  .. relationships ..
+  belongs_to: service, master
+  .. filters ..
+  service_id (eq)
+}
+
+' === Inheritance ===
+ApplicationResource <|-- UserResource
+ApplicationResource <|-- MasterResource
+ApplicationResource <|-- ServiceResource
+ApplicationResource <|-- ClientResource
+ApplicationResource <|-- NoteResource
+ApplicationResource <|-- MaterialResource
+ApplicationResource <|-- ServiceMaterialResource
+ApplicationResource <|-- ServiceMasterResource
+
+' === Model mapping ===
+UserResource ..> User : serializes
+MasterResource ..> Master : serializes
+ServiceResource ..> Service : serializes
+ClientResource ..> Client : serializes
+NoteResource ..> Note : serializes
+MaterialResource ..> Material : serializes
+ServiceMaterialResource ..> ServiceMaterial : serializes
+ServiceMasterResource ..> ServiceMaster : serializes
+
+@enduml

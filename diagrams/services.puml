@@ -1,0 +1,213 @@
+@startuml Services
+
+skinparam classAttributeIconSize 0
+skinparam classFontSize 12
+skinparam packageFontSize 14
+skinparam linetype ortho
+
+package "Services" {
+
+  class JwtService <<Service>> {
+    - {static} SECRET_KEY : String
+    - {static} ALGORITHM : String = "HS256"
+    - {static} DEFAULT_EXPIRY : Duration = 12h
+    --
+    + {static} encode(**data) : String
+    + {static} decode(token) : Hash
+    + {static} decode_silent(token) : Hash?
+  }
+
+  class SignInService <<Service>> {
+    - email : String
+    - password : String
+    --
+    + initialize(email:, password:)
+    + call() : String (JWT)
+    .. exceptions ..
+    InvalidCredentials
+  }
+
+  class CreateNoteService <<Service>> {
+    - client_params : Hash
+    - note_params : Hash
+    --
+    + initialize(client_params:, note_params:)
+    + call() : Note
+    - find_or_create_client() : Client
+    - validate_reliability!() : void
+    - build_resource_params() : Hash
+    .. exceptions ..
+    ClientBlocked
+  }
+
+  class CompleteNoteService <<Service>> {
+    - note : Note
+    --
+    + initialize(note)
+    + call() : void
+    .. exceptions ..
+    InvalidStatus
+  }
+
+  class CancelNoteService <<Service>> {
+    - note : Note
+    --
+    + initialize(note)
+    + call() : void
+    .. exceptions ..
+    InvalidStatus
+  }
+
+  class ClientReliabilityService <<Service>> {
+    - client : Client
+    - {static} PERIOD : Duration = 3.months
+    - {static} CANCELLATION_THRESHOLD : Integer = 10
+    --
+    + initialize(client)
+    + call() : Boolean
+    - cancellations_count() : Integer
+  }
+
+  class DiscontService <<Service>> {
+    - note : Note
+    - {static} FIRST_DISCONT_PERCENT : Integer = 10
+    --
+    + initialize(note)
+    + call() : void
+    - calculate_discont_price() : Float
+  }
+
+  class ConsumeMaterialsService <<Service>> {
+    - note : Note
+    --
+    + initialize(note)
+    + call() : void
+  }
+
+  class ReturnMaterialsService <<Service>> {
+    - note : Note
+    --
+    + initialize(note)
+    + call() : void
+    - operations_to_return() : Relation
+  }
+
+  class MasterScheduleService <<Service>> {
+    - master : Master
+    --
+    + initialize(master)
+    + call() : Array<Hash>
+  }
+
+  class AvailableDatesService <<Service>> {
+    - master : Master
+    - days_count : Integer = 30
+    --
+    + initialize(master, days_count: 30)
+    + call() : Array<Date>
+    - working_day?(date) : Boolean
+  }
+
+  class AvailableSlotsService <<Service>> {
+    - master : Master
+    - date : Date
+    - {static} STEP_MINUTES : Integer = 60
+    --
+    + initialize(master, date:)
+    + call() : Array<String>
+  }
+
+  class "Materials::\nOperationsProvider" as OperationsProvider <<Service>> {
+    - action : Symbol
+    - params : Hash
+    --
+    + {static} call(action, params) : void
+    - apply!() : void
+    - confirm!() : void
+    - cancel!() : void
+    .. exceptions ..
+    InvalidAction
+    InvalidTransition
+    NotEnoughMaterial
+  }
+}
+
+package "ML Services" {
+
+  class PriceAnalysisService <<Service>> {
+    - {static} ALPHA : Float = 0.05
+    - {static} BETA : Float = 0.03
+    --
+    + call() : void
+    - generate_months() : Array
+    - preload_notes_data() : Hash
+    - preload_first_visit_counts() : Hash
+    - compute_material_costs() : Hash
+    - write_csv() : void
+  }
+
+  class PriceAnalysisResultService <<Service>> {
+    - {static} PREDICTIONS_PATH : Pathname
+    --
+    + call() : Hash
+    - enrich_with_titles(predictions) : Array
+    .. exceptions ..
+    NotFound
+  }
+
+  class MaterialForecastService <<Service>> {
+    --
+    + call() : void
+    - generate_months() : Array
+    - preload_bookings() : Hash
+    - compute_avg_bookings() : Hash
+    - get_ratio() : Float
+    - compute_trend() : Float
+    - export_materials_json() : void
+    - export_service_materials_json() : void
+    - write_csv() : void
+  }
+
+  class MaterialForecastResultService <<Service>> {
+    - {static} PREDICTIONS_PATH : Pathname
+    --
+    + call() : Hash
+    .. exceptions ..
+    NotFound
+  }
+}
+
+package "Jobs" {
+
+  class PriceAnalysisJob <<Job>> {
+    - {static} VENV_PYTHON : Pathname
+    - {static} TRAIN_SCRIPT : Pathname
+    - {static} PREDICT_SCRIPT : Pathname
+    --
+    + perform() : void
+    - run_script(script) : void
+  }
+
+  class MaterialForecastJob <<Job>> {
+    - {static} VENV_PYTHON : Pathname
+    - {static} TRAIN_SCRIPT : Pathname
+    - {static} PREDICT_SCRIPT : Pathname
+    --
+    + perform() : void
+    - run_script(script) : void
+  }
+}
+
+' === Dependencies ===
+SignInService ..> JwtService : generates token
+CreateNoteService ..> ClientReliabilityService : validates
+CreateNoteService ..> ConsumeMaterialsService : calls
+CreateNoteService ..> DiscontService : calls
+CancelNoteService ..> ReturnMaterialsService : calls
+ConsumeMaterialsService ..> OperationsProvider : calls
+ReturnMaterialsService ..> OperationsProvider : calls
+
+PriceAnalysisJob ..> PriceAnalysisService : calls
+MaterialForecastJob ..> MaterialForecastService : calls
+
+@enduml

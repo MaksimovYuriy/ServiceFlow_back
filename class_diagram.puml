@@ -20,6 +20,10 @@ package "Models" {
     + has_secure_password
     + generate_jwt() : String
     + {static} from_jwt(token) : User
+    .. callbacks ..
+    downcase_email (before_save)
+    .. validations ..
+    email: presence, uniqueness
   }
 
   class Master {
@@ -32,6 +36,11 @@ package "Models" {
     - active : boolean
     - created_at : datetime
     - updated_at : datetime
+    --
+    .. validations ..
+    first_name: presence
+    last_name: presence
+    phone: presence, uniqueness
   }
 
   class MasterSchedule {
@@ -60,6 +69,11 @@ package "Models" {
     - active : boolean
     - created_at : datetime
     - updated_at : datetime
+    --
+    .. validations ..
+    title: presence
+    price: presence, > 0
+    duration: presence
   }
 
   class Client {
@@ -69,6 +83,10 @@ package "Models" {
     - telegram : string
     - created_at : datetime
     - updated_at : datetime
+    --
+    .. validations ..
+    full_name: presence
+    phone: presence, uniqueness
   }
 
   class Note <<Booking>> {
@@ -90,8 +108,10 @@ package "Models" {
     .. scopes ..
     + actuals()
     .. validations ..
+    start_at: presence
+    end_at: presence
     end_after_start
-    no_overlap
+    no_overlap (per master)
   }
 
   class Material {
@@ -102,6 +122,12 @@ package "Models" {
     - price : float
     - created_at : datetime
     - updated_at : datetime
+    --
+    .. validations ..
+    title: presence
+    quantity: >= 0
+    minimal_quantity: >= 0
+    price: >= 0
   }
 
   class MaterialOperation {
@@ -125,6 +151,8 @@ package "Models" {
     .. enum source ..
     manual = 0
     booking = 1
+    .. validations ..
+    amount: > 0
   }
 
   class ServiceMaterial <<Join>> {
@@ -134,6 +162,9 @@ package "Models" {
     - material_id : integer
     - created_at : datetime
     - updated_at : datetime
+    --
+    .. validations ..
+    required_quantity: presence, > 0
   }
 
   class ServiceMaster <<Join>> {
@@ -142,18 +173,22 @@ package "Models" {
     - master_id : integer
     - created_at : datetime
     - updated_at : datetime
+    --
+    .. validations ..
+    service_id: unique per master_id
   }
 }
 
 ' ===== MODEL ASSOCIATIONS =====
 Master "1" --> "*" MasterSchedule : has_many\n(dependent: destroy)
-Master "1" --> "*" ServiceMaster : has_many
-Master "1" --> "*" Note : has_many
+Master "1" --> "*" ServiceMaster : has_many\n(dependent: destroy)
+Master "1" --> "*" Note : has_many\n(dependent: restrict)
 
-Service "1" --> "*" ServiceMaterial : has_many
-Service "1" --> "*" ServiceMaster : has_many
+Service "1" --> "*" ServiceMaterial : has_many\n(dependent: destroy)
+Service "1" --> "*" ServiceMaster : has_many\n(dependent: destroy)
+Service "1" --> "*" Note : has_many\n(dependent: restrict)
 
-Client "1" --> "*" Note : has_many
+Client "1" --> "*" Note : has_many\n(dependent: restrict)
 
 Note "*" --> "1" Service : belongs_to
 Note "*" --> "1" Client : belongs_to
@@ -166,7 +201,8 @@ ServiceMaterial "*" --> "1" Material : belongs_to
 ServiceMaster "*" --> "1" Service : belongs_to
 ServiceMaster "*" --> "1" Master : belongs_to
 
-Material "1" --> "*" ServiceMaterial : has_many
+Material "1" --> "*" ServiceMaterial : has_many\n(dependent: destroy)
+Material "1" --> "*" MaterialOperation : has_many\n(dependent: destroy)
 MaterialOperation "*" --> "1" Material : belongs_to
 MaterialOperation "*" --> "0..1" Note : belongs_to\n(optional)
 
@@ -184,12 +220,64 @@ package "Services" {
     + {static} decode_silent(token) : Hash?
   }
 
-  class DiscontService <<Service>> {
+  class SignInService <<Service>> {
+    - email : String
+    - password : String
+    --
+    + initialize(email:, password:)
+    + call() : String (JWT)
+    .. exceptions ..
+    InvalidCredentials
+  }
+
+  class CreateNoteService <<Service>> {
+    - client_params : Hash
+    - note_params : Hash
+    --
+    + initialize(client_params:, note_params:)
+    + call() : Note
+    - find_or_create_client() : Client
+    - validate_reliability!() : void
+    - build_resource_params() : Hash
+    .. exceptions ..
+    ClientBlocked
+  }
+
+  class CompleteNoteService <<Service>> {
     - note : Note
-    - FIRST_DISCONT_PERCENT : Integer = 10
     --
     + initialize(note)
     + call() : void
+    .. exceptions ..
+    InvalidStatus
+  }
+
+  class CancelNoteService <<Service>> {
+    - note : Note
+    --
+    + initialize(note)
+    + call() : void
+    .. exceptions ..
+    InvalidStatus
+  }
+
+  class ClientReliabilityService <<Service>> {
+    - client : Client
+    - {static} PERIOD : Duration = 3.months
+    - {static} CANCELLATION_THRESHOLD : Integer = 10
+    --
+    + initialize(client)
+    + call() : Boolean
+    - cancellations_count() : Integer
+  }
+
+  class DiscontService <<Service>> {
+    - note : Note
+    - {static} FIRST_DISCONT_PERCENT : Integer = 10
+    --
+    + initialize(note)
+    + call() : void
+    - calculate_discont_price() : Float
   }
 
   class ConsumeMaterialsService <<Service>> {
@@ -204,14 +292,32 @@ package "Services" {
     --
     + initialize(note)
     + call() : void
+    - operations_to_return() : ActiveRecord::Relation
   }
 
   class MasterScheduleService <<Service>> {
     - master : Master
     --
     + initialize(master)
-    + available_dates(days_count) : Array
-    + available_slots(date, step_minutes) : Array
+    + call() : Array<Hash>
+  }
+
+  class AvailableDatesService <<Service>> {
+    - master : Master
+    - days_count : Integer = 30
+    --
+    + initialize(master, days_count: 30)
+    + call() : Array<Date>
+    - working_day?(date) : Boolean
+  }
+
+  class AvailableSlotsService <<Service>> {
+    - master : Master
+    - date : Date
+    - {static} STEP_MINUTES : Integer = 60
+    --
+    + initialize(master, date:)
+    + call() : Array<String>
   }
 
   class "Materials::\nOperationsProvider" as OperationsProvider <<Service>> {
@@ -219,9 +325,9 @@ package "Services" {
     - params : Hash
     --
     + {static} call(action, params) : void
-    - apply() : void
-    - confirm() : void
-    - cancel() : void
+    - apply!() : void
+    - confirm!() : void
+    - cancel!() : void
     .. exceptions ..
     InvalidAction
     InvalidTransition
@@ -229,24 +335,104 @@ package "Services" {
   }
 
   class PriceAnalysisService <<Service>> {
-    - ALPHA : Float = 0.05
-    - BETA : Float = 0.03
+    - {static} ALPHA : Float = 0.05
+    - {static} BETA : Float = 0.03
     --
     + call() : void
+    - generate_months() : Array
+    - preload_notes_data() : Hash
+    - preload_first_visit_counts() : Hash
+    - compute_material_costs() : Hash
+    - write_csv() : void
+  }
+
+  class PriceAnalysisResultService <<Service>> {
+    - {static} PREDICTIONS_PATH : Pathname
+    --
+    + call() : Hash
+    - enrich_with_titles(predictions) : Array
+    .. exceptions ..
+    NotFound
+  }
+
+  class MaterialForecastService <<Service>> {
+    --
+    + call() : void
+    - generate_months() : Array
+    - preload_bookings() : Hash
+    - compute_avg_bookings() : Hash
+    - get_ratio() : Float
+    - compute_trend() : Float
+    - export_materials_json() : void
+    - export_service_materials_json() : void
+    - write_csv() : void
+  }
+
+  class MaterialForecastResultService <<Service>> {
+    - {static} PREDICTIONS_PATH : Pathname
+    --
+    + call() : Hash
+    .. exceptions ..
+    NotFound
   }
 }
 
 ' Service dependencies
+SignInService ..> User : authenticates
+CreateNoteService ..> ClientReliabilityService : validates
+CreateNoteService ..> ConsumeMaterialsService : calls
+CreateNoteService ..> DiscontService : calls
+CreateNoteService ..> NoteResource : builds
+CompleteNoteService ..> Note : updates status
+CancelNoteService ..> ReturnMaterialsService : calls
+ClientReliabilityService ..> Note : queries
 DiscontService ..> Note : uses
 ConsumeMaterialsService ..> Note : uses
 ConsumeMaterialsService ..> OperationsProvider : calls
 ReturnMaterialsService ..> Note : uses
 ReturnMaterialsService ..> OperationsProvider : calls
 MasterScheduleService ..> Master : uses
+AvailableDatesService ..> Master : uses
+AvailableSlotsService ..> Master : uses
 OperationsProvider ..> Material : locks & updates
 OperationsProvider ..> MaterialOperation : creates
 PriceAnalysisService ..> Note : queries
 PriceAnalysisService ..> Service : queries
+PriceAnalysisResultService ..> Service : queries
+MaterialForecastService ..> Note : queries
+MaterialForecastService ..> Service : queries
+MaterialForecastService ..> Material : queries
+
+
+' ===== JOBS =====
+package "Jobs" {
+
+  class PriceAnalysisJob <<Job>> {
+    - {static} VENV_PYTHON : Pathname
+    - {static} TRAIN_SCRIPT : Pathname
+    - {static} PREDICT_SCRIPT : Pathname
+    --
+    + perform() : void
+    - run_script(script) : void
+  }
+
+  class MaterialForecastJob <<Job>> {
+    - {static} VENV_PYTHON : Pathname
+    - {static} TRAIN_SCRIPT : Pathname
+    - {static} PREDICT_SCRIPT : Pathname
+    --
+    + perform() : void
+    - run_script(script) : void
+  }
+}
+
+PriceAnalysisJob ..> PriceAnalysisService : calls
+PriceAnalysisJob ..> "ml/train_price.py" : executes
+PriceAnalysisJob ..> "ml/predict_price.py" : executes
+
+MaterialForecastJob ..> MaterialForecastService : calls
+MaterialForecastJob ..> "ml/train_materials.py" : executes
+MaterialForecastJob ..> "ml/predict_materials.py" : executes
 
 
 ' ===== CONTROLLERS =====
@@ -259,8 +445,10 @@ package "Controllers" {
   }
 
   class AuthController {
+    .. skip_before_action: authenticate! ..
     --
     + sign_in() : JSON
+    - sign_in_params() : Hash
   }
 
   class UsersController {
@@ -273,6 +461,8 @@ package "Controllers" {
   }
 
   class MastersController {
+    .. skip_before_action: authenticate! ..
+    .. only: index, available_dates, available_slots ..
     --
     + index() : JSON:API
     + show() : JSON:API
@@ -284,6 +474,8 @@ package "Controllers" {
   }
 
   class ServicesController {
+    .. skip_before_action: authenticate! ..
+    .. only: index ..
     --
     + index() : JSON:API
     + create() : JSON:API
@@ -299,25 +491,39 @@ package "Controllers" {
     + destroy() : JSON:API
   }
 
+  class MaterialsController {
+    --
+    + index() : JSON:API
+    + show() : JSON:API
+    + create() : JSON:API
+    + update() : JSON:API
+    + destroy() : JSON:API
+  }
+
   class NotesController {
+    .. skip_before_action: authenticate! ..
+    .. only: create ..
     --
     + index() : JSON:API
     + create() : JSON:API
     + complete() : JSON
     + cancel() : JSON
+    - client_params() : Hash
+    - note_params() : Hash
   }
 
   class "Materials::\nOperationsController" as MatOpsController {
     --
-    + index() : JSON:API
-    + create() : JSON
-    + cancel() : JSON
+    + add() : JSON
+    + subtract() : JSON
+    - operation_params() : Hash
   }
 
   class ServiceMaterialsController {
     --
     + index() : JSON:API
     + create() : JSON:API
+    + update() : JSON:API
     + destroy() : JSON:API
   }
 
@@ -330,12 +536,20 @@ package "Controllers" {
 
   class "Masters::\nSchedulesController" as SchedulesController {
     --
-    + index() : JSON:API
-    + create() : JSON:API
-    + destroy() : JSON:API
+    + index() : JSON
+    + create() : JSON
+    + destroy() : 204
+    - set_master() : void
+    - schedule_params() : Hash
   }
 
   class PriceAnalysisController {
+    --
+    + create() : JSON
+    + show() : JSON
+  }
+
+  class MaterialForecastController {
     --
     + create() : JSON
     + show() : JSON
@@ -347,20 +561,28 @@ ApplicationController <|-- UsersController
 ApplicationController <|-- MastersController
 ApplicationController <|-- ServicesController
 ApplicationController <|-- ClientsController
+ApplicationController <|-- MaterialsController
 ApplicationController <|-- NotesController
 ApplicationController <|-- MatOpsController
 ApplicationController <|-- ServiceMaterialsController
 ApplicationController <|-- ServiceMastersController
 ApplicationController <|-- SchedulesController
 ApplicationController <|-- PriceAnalysisController
+ApplicationController <|-- MaterialForecastController
 
 ApplicationController ..> JwtService : authenticate
-MastersController ..> MasterScheduleService : uses
-NotesController ..> ConsumeMaterialsService : uses
-NotesController ..> DiscontService : uses
-NotesController ..> ReturnMaterialsService : uses
+AuthController ..> SignInService : uses
+MastersController ..> AvailableDatesService : uses
+MastersController ..> AvailableSlotsService : uses
+NotesController ..> CreateNoteService : uses
+NotesController ..> CompleteNoteService : uses
+NotesController ..> CancelNoteService : uses
 MatOpsController ..> OperationsProvider : uses
-PriceAnalysisController ..> PriceAnalysisService : uses
+SchedulesController ..> MasterScheduleService : uses
+PriceAnalysisController ..> PriceAnalysisJob : uses
+PriceAnalysisController ..> PriceAnalysisResultService : uses
+MaterialForecastController ..> MaterialForecastJob : uses
+MaterialForecastController ..> MaterialForecastResultService : uses
 
 
 ' ===== RESOURCES (Graphiti) =====
@@ -369,17 +591,84 @@ package "Resources (Graphiti)" {
   abstract class ApplicationResource {
     --
     adapter: ActiveRecord
-    base_url: /api
+    endpoint_namespace: /api
+    default_page_size: 1000
   }
 
-  class UserResource
-  class MasterResource
-  class ServiceResource
-  class ClientResource
-  class NoteResource
-  class MaterialResource
-  class ServiceMaterialResource
-  class ServiceMasterResource
+  class UserResource {
+    --
+    email, phone, active
+    password (write-only)
+    password_confirmation (write-only)
+  }
+
+  class MasterResource {
+    --
+    first_name, middle_name, last_name
+    phone, active
+    salary (write-only)
+    full_name (computed)
+    .. filters ..
+    service_id (eq)
+  }
+
+  class ServiceResource {
+    --
+    title, description, duration
+    price, active
+    .. relationships ..
+    has_many: service_materials
+  }
+
+  class ClientResource {
+    --
+    full_name, phone, telegram
+  }
+
+  class NoteResource {
+    --
+    status, total_price
+    service_id, client_id, master_id
+    start_at, end_at
+    client_name (computed)
+    master_name (computed)
+    service_title (computed)
+    .. relationships ..
+    belongs_to: client, master, service
+    .. filters ..
+    date (eq)
+    .. sort ..
+    start_at
+  }
+
+  class MaterialResource {
+    --
+    title, quantity
+    minimal_quantity, price
+    .. relationships ..
+    has_many: service_materials
+  }
+
+  class ServiceMaterialResource {
+    --
+    required_quantity
+    service_id, material_id
+    material_title (computed)
+    .. relationships ..
+    belongs_to: service, material
+    .. filters ..
+    service_id (eq)
+  }
+
+  class ServiceMasterResource {
+    --
+    service_id, master_id
+    master_name (computed)
+    .. relationships ..
+    belongs_to: service, master
+    .. filters ..
+    service_id (eq)
+  }
 }
 
 ApplicationResource <|-- UserResource

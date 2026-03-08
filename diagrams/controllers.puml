@@ -1,0 +1,155 @@
+@startuml Controllers
+
+skinparam classAttributeIconSize 0
+skinparam classFontSize 12
+skinparam packageFontSize 14
+skinparam linetype ortho
+
+abstract class ApplicationController {
+  # @current_user : User
+  --
+  # authenticate!() : void
+}
+
+class AuthController {
+  .. skip_before_action: authenticate! ..
+  --
+  + sign_in() : JSON
+  - sign_in_params() : Hash
+}
+
+class UsersController {
+  --
+  + index() : JSON:API
+  + show() : JSON:API
+  + create() : JSON:API
+  + update() : JSON:API
+  + destroy() : JSON:API
+}
+
+class MastersController {
+  .. skip_before_action: authenticate! ..
+  .. only: index, available_dates, available_slots ..
+  --
+  + index() : JSON:API
+  + show() : JSON:API
+  + create() : JSON:API
+  + update() : JSON:API
+  + destroy() : JSON:API
+  + available_dates() : JSON
+  + available_slots() : JSON
+}
+
+class ServicesController {
+  .. skip_before_action: authenticate! ..
+  .. only: index ..
+  --
+  + index() : JSON:API
+  + create() : JSON:API
+  + update() : JSON:API
+}
+
+class ClientsController {
+  --
+  + index() : JSON:API
+  + show() : JSON:API
+  + create() : JSON:API
+  + update() : JSON:API
+  + destroy() : JSON:API
+}
+
+class MaterialsController {
+  --
+  + index() : JSON:API
+  + show() : JSON:API
+  + create() : JSON:API
+  + update() : JSON:API
+  + destroy() : JSON:API
+}
+
+class NotesController {
+  .. skip_before_action: authenticate! ..
+  .. only: create ..
+  --
+  + index() : JSON:API
+  + create() : JSON:API
+  + complete() : JSON
+  + cancel() : JSON
+  - client_params() : Hash
+  - note_params() : Hash
+}
+
+class "Materials::\nOperationsController" as MatOpsController {
+  --
+  + add() : JSON
+  + subtract() : JSON
+  - operation_params() : Hash
+}
+
+class ServiceMaterialsController {
+  --
+  + index() : JSON:API
+  + create() : JSON:API
+  + update() : JSON:API
+  + destroy() : JSON:API
+}
+
+class ServiceMastersController {
+  --
+  + index() : JSON:API
+  + create() : JSON:API
+  + destroy() : JSON:API
+}
+
+class "Masters::\nSchedulesController" as SchedulesController {
+  --
+  + index() : JSON
+  + create() : JSON
+  + destroy() : 204
+  - set_master() : void
+  - schedule_params() : Hash
+}
+
+class PriceAnalysisController {
+  --
+  + create() : JSON
+  + show() : JSON
+}
+
+class MaterialForecastController {
+  --
+  + create() : JSON
+  + show() : JSON
+}
+
+' === Inheritance ===
+ApplicationController <|-- AuthController
+ApplicationController <|-- UsersController
+ApplicationController <|-- MastersController
+ApplicationController <|-- ServicesController
+ApplicationController <|-- ClientsController
+ApplicationController <|-- MaterialsController
+ApplicationController <|-- NotesController
+ApplicationController <|-- MatOpsController
+ApplicationController <|-- ServiceMaterialsController
+ApplicationController <|-- ServiceMastersController
+ApplicationController <|-- SchedulesController
+ApplicationController <|-- PriceAnalysisController
+ApplicationController <|-- MaterialForecastController
+
+' === Service dependencies ===
+ApplicationController ..> JwtService : authenticate
+AuthController ..> SignInService : uses
+MastersController ..> AvailableDatesService : uses
+MastersController ..> AvailableSlotsService : uses
+NotesController ..> CreateNoteService : uses
+NotesController ..> CompleteNoteService : uses
+NotesController ..> CancelNoteService : uses
+MatOpsController ..> OperationsProvider : uses
+SchedulesController ..> MasterScheduleService : uses
+PriceAnalysisController ..> PriceAnalysisJob : uses
+PriceAnalysisController ..> PriceAnalysisResultService : uses
+MaterialForecastController ..> MaterialForecastJob : uses
+MaterialForecastController ..> MaterialForecastResultService : uses
+
+@enduml
