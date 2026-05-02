@@ -5,4 +5,8 @@ class MaterialResource < ApplicationResource
   attribute :price, :float
 
   has_many :service_materials
+
+  def base_scope
+    Material.order(id: :asc)
+  end
 end
