@@ -1,7 +1,9 @@
 Rails.application.routes.draw do
   get "up" => "rails/health#show", as: :rails_health_check
 
-  post '/auth/sign_in'
+  post   '/auth/sign_in',  to: 'auth#sign_in'
+  delete '/auth/sign_out', to: 'auth#sign_out'
+  get    '/auth/me',       to: 'auth#me'
 
   post '/api/price_analysis', to: 'price_analysis#create'
   get  '/api/price_analysis', to: 'price_analysis#show'
