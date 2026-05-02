@@ -399,17 +399,28 @@ service_config = {
   "Стрижка бороды"               => { category: :barber,     base: 5 },
 }
 
-# --- 4.4 Year-over-year growth ---
-year_trend = { 2024 => 1.0, 2025 => 1.10, 2026 => 1.15 }
+# --- 4.4 Adaptive date range relative to today ---
+today          = Date.current
+months_back    = 24
+months_forward = 2
+range_start    = today << months_back
+range_end      = today >> months_forward
+
+months_to_generate = []
+cursor    = Date.new(range_start.year, range_start.month, 1)
+last_seed = Date.new(range_end.year,   range_end.month,   1)
+while cursor <= last_seed
+  months_to_generate << [cursor.year, cursor.month]
+  cursor = cursor >> 1
+end
+
+# --- 4.4.1 Year-over-year growth (dynamic) ---
+years_in_range = (range_start.year..range_end.year).to_a
+year_trend     = years_in_range.each_with_index.to_h { |year, idx| [year, 1.0 + 0.05 * idx] }
 
 # --- 4.5 Generate notes ---
 occupied = Hash.new { |h, k| h[k] = Hash.new { |h2, k2| h2[k2] = Set.new } }
 note_rows = []
-
-months_to_generate = (2024..2025).flat_map { |y| (1..12).map { |m| [y, m] } } +
-                     [[2026, 1], [2026, 2], [2026, 3]]
-
-today = Date.new(2026, 2, 28)
 
 months_to_generate.each do |year, month|
   month_generated = 0
@@ -547,9 +558,9 @@ material_consumption = Hash.new(0)
 out_rows.each { |row| material_consumption[row[:material_id]] += row[:amount] }
 
 # --- 5.5 Generate periodic "in" (restock) operations ---
-# Spread over Jan 2024 — Mar 2026, every ~14 days (~56 deliveries)
-restock_start = Time.utc(2024, 1, 1)
-restock_end   = Time.utc(2026, 3, 1)
+# Spread over the same adaptive window as notes, every ~14 days
+restock_start = Time.utc(range_start.year, range_start.month, 1)
+restock_end   = Time.utc(range_end.year,   range_end.month,   1)
 restock_dates = []
 current_date  = restock_start
 while current_date <= restock_end
