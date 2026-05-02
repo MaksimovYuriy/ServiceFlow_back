@@ -1,0 +1,31 @@
+@startuml Modules Overview
+
+skinparam componentFontSize 14
+skinparam packageFontSize 16
+skinparam arrowFontSize 12
+skinparam defaultTextAlignment center
+skinparam packageStyle rectangle
+
+package "Аутентификация и авторизация" as auth
+package "Управление клиентами" as clients
+package "Управление сотрудниками" as masters
+package "Управление записями" as notes
+package "Складской учёт" as stock
+package "Аналитика и прогнозирование" as analytics
+
+auth ..> clients
+auth ..> masters
+auth ..> notes
+auth ..> stock
+auth ..> analytics
+
+clients --> notes : клиент записи
+masters --> notes : мастер и расписание
+notes --> stock : списание / возврат материалов
+
+clients ..> analytics : данные клиентов
+masters ..> analytics : данные сотрудников
+notes ..> analytics : данные записей
+stock ..> analytics : данные потребления
+
+@enduml

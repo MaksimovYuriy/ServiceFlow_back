@@ -11,6 +11,9 @@
 # It's strongly recommended that you check this file into your version control system.
 
 ActiveRecord::Schema[7.1].define(version: 2026_02_28_133554) do
+  # These are extensions that must be enabled in order to support this database
+  enable_extension "plpgsql"
+
   create_table "clients", force: :cascade do |t|
     t.string "full_name"
     t.string "phone"
@@ -20,7 +23,7 @@ ActiveRecord::Schema[7.1].define(version: 2026_02_28_133554) do
   end
 
   create_table "master_schedules", force: :cascade do |t|
-    t.integer "master_id", null: false
+    t.bigint "master_id", null: false
     t.integer "weekday", null: false
     t.time "start_time", null: false
     t.time "end_time", null: false
@@ -45,10 +48,10 @@ ActiveRecord::Schema[7.1].define(version: 2026_02_28_133554) do
     t.integer "operation_type"
     t.integer "status"
     t.integer "source"
-    t.integer "material_id", null: false
+    t.bigint "material_id", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.integer "note_id"
+    t.bigint "note_id"
     t.index ["material_id"], name: "index_material_operations_on_material_id"
     t.index ["note_id"], name: "index_material_operations_on_note_id"
   end
@@ -65,9 +68,9 @@ ActiveRecord::Schema[7.1].define(version: 2026_02_28_133554) do
   create_table "notes", force: :cascade do |t|
     t.integer "status", default: 0
     t.float "total_price"
-    t.integer "service_id", null: false
-    t.integer "client_id", null: false
-    t.integer "master_id", null: false
+    t.bigint "service_id", null: false
+    t.bigint "client_id", null: false
+    t.bigint "master_id", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.datetime "start_at", null: false
@@ -78,8 +81,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_02_28_133554) do
   end
 
   create_table "service_masters", force: :cascade do |t|
-    t.integer "service_id", null: false
-    t.integer "master_id", null: false
+    t.bigint "service_id", null: false
+    t.bigint "master_id", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["master_id"], name: "index_service_masters_on_master_id"
@@ -88,8 +91,8 @@ ActiveRecord::Schema[7.1].define(version: 2026_02_28_133554) do
 
   create_table "service_materials", force: :cascade do |t|
     t.integer "required_quantity"
-    t.integer "service_id", null: false
-    t.integer "material_id", null: false
+    t.bigint "service_id", null: false
+    t.bigint "material_id", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.index ["material_id"], name: "index_service_materials_on_material_id"

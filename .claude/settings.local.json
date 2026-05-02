@@ -1,7 +1,12 @@
 {
   "permissions": {
     "allow": [
-      "Bash(bin/rails runner \"PriceAnalysisJob.perform_now\")"
+      "Bash(bin/rails runner \"PriceAnalysisJob.perform_now\")",
+      "Read(///wsl.localhost/Ubuntu/home/yuriy/ServiceFlow_back/**)",
+      "Read(///wsl.localhost/Ubuntu/home/yuriy/**)"
+    ],
+    "additionalDirectories": [
+      "C:\\Users\\yuram\\ServiceFlow_front"
     ]
   }
 }
