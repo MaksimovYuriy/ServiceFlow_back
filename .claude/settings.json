@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wsl -d Ubuntu -e bash -c \"grep -rn -E '\\(strftime|julianday|GROUP_CONCAT|RANDOM\\\\\\(\\\\\\)\\)' /home/yuriy/ServiceFlow_back/app/services/ 2>/dev/null || echo 'no matches'\")",
+      "Bash(wsl -d Ubuntu -e bash -c \"chmod +x /home/yuriy/ServiceFlow_back/tmp/gen_ml_csv.sh && /home/yuriy/ServiceFlow_back/tmp/gen_ml_csv.sh\")",
+      "Bash(wsl -d Ubuntu -e bash -c \"ls /home/yuriy/ServiceFlow_back/ml/venv/bin/python3 && /home/yuriy/ServiceFlow_back/ml/venv/bin/python3 -c 'import torch, pandas, numpy; print\\(torch.__version__, pandas.__version__, numpy.__version__\\)'\")",
+      "Bash(wsl -d Ubuntu -e bash -c \"cd /home/yuriy/ServiceFlow_back && ml/venv/bin/python3 ml/train_materials.py 2>&1\")",
+      "Bash(wsl -d Ubuntu -e bash -c \"cd /home/yuriy/ServiceFlow_back && ml/venv/bin/python3 ml/train_price.py 2>&1 && echo '---' && ml/venv/bin/python3 ml/train_materials.py 2>&1\")",
+      "Bash(wsl -d Ubuntu -e bash -c \"cd /home/yuriy/ServiceFlow_back && head -30 tmp/price_predictions.json && echo '---materials---' && head -40 tmp/material_predictions.json\")",
+      "Bash(wsl -d Ubuntu -e bash -c \"which redis-server 2>/dev/null && redis-server --version 2>/dev/null || echo 'redis-server NOT installed'; echo '---'; ls /home/yuriy/ServiceFlow_back/config/initializers/sidekiq.rb 2>/dev/null && cat /home/yuriy/ServiceFlow_back/config/initializers/sidekiq.rb 2>/dev/null || echo 'no sidekiq initializer'\")"
+    ]
+  }
+}

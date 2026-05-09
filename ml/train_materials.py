@@ -1,3 +1,4 @@
+import json
 import os
 import numpy as np
 import pandas as pd
@@ -8,6 +9,7 @@ from torch.utils.data import DataLoader, TensorDataset
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 CSV_PATH = os.path.join(SCRIPT_DIR, '..', 'tmp', 'material_forecast.csv')
 MODEL_PATH = os.path.join(SCRIPT_DIR, 'material_model.pth')
+METRICS_PATH = os.path.join(SCRIPT_DIR, '..', 'tmp', 'material_metrics.json')
 
 FEATURES = [
     'bookings_lag_1', 'bookings_lag_2', 'bookings_lag_3',
@@ -21,6 +23,18 @@ EPOCHS = 1500
 LR = 0.001
 BATCH_SIZE = 32
 HIDDEN_SIZES = [32, 16]
+DROPOUT = 0.1
+
+
+def compute_metrics(y_true, y_pred):
+    y_true = np.asarray(y_true).reshape(-1)
+    y_pred = np.asarray(y_pred).reshape(-1)
+    err = y_true - y_pred
+    mse = float((err ** 2).mean())
+    mae = float(np.abs(err).mean())
+    denom = float(np.abs(y_true).sum())
+    wmape = float(np.abs(err).sum() / denom * 100) if denom > 0 else 0.0
+    return mse, mae, wmape
 
 
 class MaterialMLP(nn.Module):
@@ -123,28 +137,59 @@ def train():
             if (epoch + 1) % 300 == 0:
                 print(f'  Epoch {epoch+1}/{EPOCHS}  val_loss={val_loss:.6f}  best={best_val_loss:.6f}')
 
-    # Evaluate on test set
     model.load_state_dict(best_state)
     model.eval()
     with torch.no_grad():
-        test_pred = model(torch.tensor(X_test_norm))
-        test_loss = criterion(test_pred, torch.tensor(y_test)).item()
-        test_mae = torch.abs(test_pred - torch.tensor(y_test)).mean().item()
+        test_pred = model(torch.tensor(X_test_norm)).numpy()
 
-    print(f'\nTest MSE:  {test_loss:.6f}')
-    print(f'Test MAE:  {test_mae:.6f}')
+    mse, mae, wmape = compute_metrics(y_test, test_pred)
+
+    baseline_lag1_pred = test_df['bookings_lag_1'].values.astype(np.float32)
+    baseline_avg3_pred = test_df['avg_bookings_last_3m'].values.astype(np.float32)
+
+    lag1_mse, lag1_mae, lag1_wmape = compute_metrics(y_test, baseline_lag1_pred)
+    avg3_mse, avg3_mae, avg3_wmape = compute_metrics(y_test, baseline_avg3_pred)
+
+    best_baseline_mae = min(lag1_mae, avg3_mae)
+    improvement_mae = (best_baseline_mae - mae) / best_baseline_mae * 100 if best_baseline_mae > 0 else 0.0
+
+    print('\n=== Test metrics (booking_ratio) ===')
+    print(f'MLP        : MSE={mse:.6f}  MAE={mae:.6f}  wMAPE={wmape:.2f}%')
+    print(f'Naive lag1 : MSE={lag1_mse:.6f}  MAE={lag1_mae:.6f}  wMAPE={lag1_wmape:.2f}%   (predicted = previous month ratio)')
+    print(f'Avg 3m     : MSE={avg3_mse:.6f}  MAE={avg3_mae:.6f}  wMAPE={avg3_wmape:.2f}%   (predicted = mean of last 3 months)')
+    print(f'MAE improvement vs best baseline: {improvement_mae:+.1f}%')
+
+    metrics = {
+        'best_val_loss': best_val_loss,
+        'test_mse': mse,
+        'test_mae': mae,
+        'test_wmape': wmape,
+        'baseline_lag1_mae': lag1_mae,
+        'baseline_lag1_wmape': lag1_wmape,
+        'baseline_avg3_mae': avg3_mae,
+        'baseline_avg3_wmape': avg3_wmape,
+        'mae_improvement_pct': improvement_mae,
+        'train_rows': len(train_df),
+        'val_rows': len(val_df),
+        'test_rows': len(test_df),
+    }
 
     torch.save({
         'model_state': best_state,
         'input_size': len(FEATURES),
         'hidden_sizes': HIDDEN_SIZES,
+        'dropout': DROPOUT,
         'feature_mean': mean.tolist(),
         'feature_std': std.tolist(),
         'features': FEATURES,
+        'metrics': metrics,
     }, MODEL_PATH)
 
+    with open(METRICS_PATH, 'w') as f:
+        json.dump(metrics, f, indent=2, ensure_ascii=False)
+
     print(f'\nModel saved to {MODEL_PATH}')
-    print(f'Best validation loss: {best_val_loss:.6f}')
+    print(f'Metrics saved to {METRICS_PATH}')
 
 
 if __name__ == '__main__':

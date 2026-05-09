@@ -80,11 +80,11 @@ class MaterialForecastService
     results = Note.where(status: 2)
       .select(
         "service_id",
-        "CAST(strftime('%Y', start_at) AS INTEGER) as year",
-        "CAST(strftime('%m', start_at) AS INTEGER) as month",
+        "EXTRACT(YEAR FROM start_at)::int as year",
+        "EXTRACT(MONTH FROM start_at)::int as month",
         "COUNT(*) as cnt"
       )
-      .group("service_id, strftime('%Y', start_at), strftime('%m', start_at)")
+      .group("service_id, EXTRACT(YEAR FROM start_at), EXTRACT(MONTH FROM start_at)")
 
     data = {}
     results.each do |r|

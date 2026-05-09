@@ -5,11 +5,15 @@ Rails.application.routes.draw do
   delete '/auth/sign_out', to: 'auth#sign_out'
   get    '/auth/me',       to: 'auth#me'
 
-  post '/api/price_analysis', to: 'price_analysis#create'
-  get  '/api/price_analysis', to: 'price_analysis#show'
+  post '/api/price_analysis',             to: 'price_analysis#create'
+  get  '/api/price_analysis',             to: 'price_analysis#show'
+  get  '/api/price_analysis/runs',        to: 'price_analysis#index_runs'
+  get  '/api/price_analysis/runs/latest', to: 'price_analysis#show_latest'
 
-  post '/api/material_forecast', to: 'material_forecast#create'
-  get  '/api/material_forecast', to: 'material_forecast#show'
+  post '/api/material_forecast',             to: 'material_forecast#create'
+  get  '/api/material_forecast',             to: 'material_forecast#show'
+  get  '/api/material_forecast/runs',        to: 'material_forecast#index_runs'
+  get  '/api/material_forecast/runs/latest', to: 'material_forecast#show_latest'
 
   namespace :api, defaults: { format: :json } do
     namespace :analytics do

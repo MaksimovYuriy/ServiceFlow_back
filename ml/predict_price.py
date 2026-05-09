@@ -12,13 +12,14 @@ OUTPUT_PATH = os.path.join(SCRIPT_DIR, '..', 'tmp', 'price_predictions.json')
 
 
 class PriceMLP(nn.Module):
-    def __init__(self, input_size, hidden_sizes):
+    def __init__(self, input_size, hidden_sizes, dropout=0.1):
         super().__init__()
         layers = []
         prev = input_size
         for h in hidden_sizes:
             layers.append(nn.Linear(prev, h))
             layers.append(nn.ReLU())
+            layers.append(nn.Dropout(dropout))
             prev = h
         layers.append(nn.Linear(prev, 1))
         self.net = nn.Sequential(*layers)
@@ -30,7 +31,11 @@ class PriceMLP(nn.Module):
 def predict():
     checkpoint = torch.load(MODEL_PATH, weights_only=False)
 
-    model = PriceMLP(checkpoint['input_size'], checkpoint['hidden_sizes'])
+    model = PriceMLP(
+        checkpoint['input_size'],
+        checkpoint['hidden_sizes'],
+        dropout=checkpoint.get('dropout', 0.1),
+    )
     model.load_state_dict(checkpoint['model_state'])
     model.eval()
 

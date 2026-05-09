@@ -78,13 +78,13 @@ class PriceAnalysisService
     results = Note.completed
       .select(
         "service_id",
-        "CAST(strftime('%Y', start_at) AS INTEGER) as year",
-        "CAST(strftime('%m', start_at) AS INTEGER) as month",
+        "EXTRACT(YEAR FROM start_at)::int as year",
+        "EXTRACT(MONTH FROM start_at)::int as month",
         "COUNT(*) as cnt",
         "SUM(total_price) as total",
         "AVG(total_price) as average"
       )
-      .group("service_id, strftime('%Y', start_at), strftime('%m', start_at)")
+      .group("service_id, EXTRACT(YEAR FROM start_at), EXTRACT(MONTH FROM start_at)")
 
     data = {}
     results.each do |r|
@@ -109,14 +109,14 @@ class PriceAnalysisService
       )
       SELECT
         n.service_id,
-        CAST(strftime('%Y', n.start_at) AS INTEGER) AS year,
-        CAST(strftime('%m', n.start_at) AS INTEGER) AS month,
+        EXTRACT(YEAR FROM n.start_at)::int AS year,
+        EXTRACT(MONTH FROM n.start_at)::int AS month,
         COUNT(*) AS fv_count
       FROM notes n
       JOIN client_firsts cf ON cf.client_id = n.client_id
       WHERE n.status = 2
-        AND strftime('%Y-%m', n.start_at) = strftime('%Y-%m', cf.first_at)
-      GROUP BY n.service_id, strftime('%Y', n.start_at), strftime('%m', n.start_at)
+        AND DATE_TRUNC('month', n.start_at) = DATE_TRUNC('month', cf.first_at)
+      GROUP BY n.service_id, EXTRACT(YEAR FROM n.start_at), EXTRACT(MONTH FROM n.start_at)
     SQL
 
     data = {}

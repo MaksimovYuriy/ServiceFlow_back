@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2026_02_28_133554) do
+ActiveRecord::Schema[7.1].define(version: 2026_05_09_143037) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -56,6 +56,20 @@ ActiveRecord::Schema[7.1].define(version: 2026_02_28_133554) do
     t.index ["note_id"], name: "index_material_operations_on_note_id"
   end
 
+  create_table "material_predictions", force: :cascade do |t|
+    t.integer "status", default: 0, null: false
+    t.datetime "started_at"
+    t.datetime "finished_at"
+    t.text "error_message"
+    t.jsonb "predictions", default: [], null: false
+    t.jsonb "summary", default: {}, null: false
+    t.jsonb "metrics", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index "(true)", name: "index_material_predictions_active_singleton", unique: true, where: "(status = ANY (ARRAY[0, 1]))"
+    t.index ["created_at"], name: "index_material_predictions_on_created_at", order: :desc
+  end
+
   create_table "materials", force: :cascade do |t|
     t.string "title"
     t.integer "quantity"
@@ -78,6 +92,19 @@ ActiveRecord::Schema[7.1].define(version: 2026_02_28_133554) do
     t.index ["client_id"], name: "index_notes_on_client_id"
     t.index ["master_id"], name: "index_notes_on_master_id"
     t.index ["service_id"], name: "index_notes_on_service_id"
+  end
+
+  create_table "price_predictions", force: :cascade do |t|
+    t.integer "status", default: 0, null: false
+    t.datetime "started_at"
+    t.datetime "finished_at"
+    t.text "error_message"
+    t.jsonb "predictions", default: [], null: false
+    t.jsonb "metrics", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index "(true)", name: "index_price_predictions_active_singleton", unique: true, where: "(status = ANY (ARRAY[0, 1]))"
+    t.index ["created_at"], name: "index_price_predictions_on_created_at", order: :desc
   end
 
   create_table "service_masters", force: :cascade do |t|
